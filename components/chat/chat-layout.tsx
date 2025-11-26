@@ -248,7 +248,7 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
         
         // Check for thinking tag start - match <think> tag
         const thinkStartIndex = buffer.indexOf("<think>")
-        // Check for thinking tag end - match </think> tag
+        // Check for thinking tag end - match </think> tag  
         const thinkEndIndex = buffer.indexOf("</think>")
         
         // Process thinking start tag
