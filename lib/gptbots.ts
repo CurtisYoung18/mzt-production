@@ -1,8 +1,149 @@
 // GPTBots API Client for Private Deployment (Server-side)
-// Uses standard fetch - works in v0 preview and Vercel deployment
+// Uses custom fetch with SSL certificate bypass for Vercel deployment
+
+import https from "https"
+import { Readable } from "stream"
 
 const GPTBOTS_API_KEY = process.env.GPTBOTS_API_KEY || "app-O9qte2NIaa2JgFFS7ePpK69c"
 const GPTBOTS_BASE_URL = process.env.GPTBOTS_BASE_URL || "https://27.156.118.33:40443"
+
+// Create HTTPS agent that ignores SSL certificate errors
+const httpsAgent = new https.Agent({
+  rejectUnauthorized: false, // Ignore SSL certificate errors
+})
+
+// Custom fetch function that bypasses SSL certificate validation
+async function fetchWithSSLBypass(
+  url: string,
+  options: RequestInit = {}
+): Promise<Response> {
+  return new Promise((resolve, reject) => {
+    const urlObj = new URL(url)
+    const requestOptions: https.RequestOptions = {
+      hostname: urlObj.hostname,
+      port: urlObj.port || 443,
+      path: urlObj.pathname + urlObj.search,
+      method: options.method || "GET",
+      headers: options.headers as Record<string, string>,
+      agent: httpsAgent,
+    }
+
+    const req = https.request(requestOptions, (res) => {
+      const chunks: Buffer[] = []
+      
+      res.on("data", (chunk) => {
+        chunks.push(chunk)
+      })
+
+      res.on("end", () => {
+        const body = Buffer.concat(chunks)
+        
+        // Create a Response-like object
+        const response = new Response(body, {
+          status: res.statusCode || 200,
+          statusText: res.statusMessage || "OK",
+          headers: res.headers as HeadersInit,
+        })
+        
+        resolve(response)
+      })
+    })
+
+    req.on("error", (error) => {
+      reject(error)
+    })
+
+    // Write body if present
+    if (options.body) {
+      if (typeof options.body === "string") {
+        req.write(options.body)
+      } else if (options.body instanceof ReadableStream) {
+        // Handle stream
+        const reader = options.body.getReader()
+        const pump = async () => {
+          try {
+            while (true) {
+              const { done, value } = await reader.read()
+              if (done) break
+              req.write(Buffer.from(value))
+            }
+            req.end()
+          } catch (err) {
+            req.destroy(err as Error)
+          }
+        }
+        pump()
+        return
+      }
+    }
+
+    req.end()
+  })
+}
+
+// For streaming responses
+function fetchStreamWithSSLBypass(
+  url: string,
+  options: RequestInit = {}
+): Promise<ReadableStream<Uint8Array>> {
+  return new Promise((resolve, reject) => {
+    const urlObj = new URL(url)
+    const requestOptions: https.RequestOptions = {
+      hostname: urlObj.hostname,
+      port: urlObj.port || 443,
+      path: urlObj.pathname + urlObj.search,
+      method: options.method || "GET",
+      headers: options.headers as Record<string, string>,
+      agent: httpsAgent,
+    }
+
+    const req = https.request(requestOptions, (res) => {
+      if (res.statusCode && res.statusCode >= 400) {
+        let errorBody = ""
+        res.on("data", (chunk) => {
+          errorBody += chunk.toString()
+        })
+        res.on("end", () => {
+          reject(new Error(`HTTP ${res.statusCode}: ${errorBody}`))
+        })
+        return
+      }
+
+      // Convert Node.js stream to Web ReadableStream
+      const readable = new ReadableStream<Uint8Array>({
+        start(controller) {
+          res.on("data", (chunk: Buffer) => {
+            controller.enqueue(new Uint8Array(chunk))
+          })
+          res.on("end", () => {
+            controller.close()
+          })
+          res.on("error", (err) => {
+            controller.error(err)
+          })
+        },
+        cancel() {
+          res.destroy()
+        },
+      })
+
+      resolve(readable)
+    })
+
+    req.on("error", (error) => {
+      reject(error)
+    })
+
+    // Write body if present
+    if (options.body) {
+      if (typeof options.body === "string") {
+        req.write(options.body)
+      }
+    }
+
+    req.end()
+  })
+}
 
 export interface MessageContent {
   type: "text" | "image" | "audio" | "document"
@@ -72,7 +213,7 @@ export async function createConversation(userId: string): Promise<string> {
   console.log("[v0] API URL:", url)
 
   try {
-    const response = await fetch(url, {
+    const response = await fetchWithSSLBypass(url, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${GPTBOTS_API_KEY}`,
@@ -107,7 +248,7 @@ export async function sendMessageStreaming(
   const url = `${GPTBOTS_BASE_URL}/v2/conversation/message`
   console.log("[v0] Sending streaming message to conversation:", conversationId)
 
-  const response = await fetch(url, {
+  const stream = await fetchStreamWithSSLBypass(url, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${GPTBOTS_API_KEY}`,
@@ -121,18 +262,8 @@ export async function sendMessageStreaming(
     }),
   })
 
-  console.log("[v0] Stream response status:", response.status)
-
-  if (!response.ok) {
-    const errorText = await response.text()
-    throw new Error(`HTTP ${response.status}: ${errorText}`)
-  }
-
-  if (!response.body) {
-    throw new Error("No response body")
-  }
-
-  return response.body
+  console.log("[v0] Stream created successfully")
+  return stream
 }
 
 // Send message with blocking mode
@@ -143,7 +274,7 @@ export async function sendMessageBlocking(
 ): Promise<SendMessageResponse> {
   const url = `${GPTBOTS_BASE_URL}/v2/conversation/message`
 
-  const response = await fetch(url, {
+  const response = await fetchWithSSLBypass(url, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${GPTBOTS_API_KEY}`,
