@@ -245,42 +245,75 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
         // Add chunk to buffer
         buffer += chunk
         
-        // Check for thinking tag start
-        const thinkStartIndex = buffer.indexOf("<think>")
-        const thinkEndIndex = buffer.indexOf("</think>")
+        // Check for thinking tag start - try multiple formats
+        let thinkStartIndex = buffer.indexOf("<think>")
+        let thinkEndIndex = buffer.indexOf("</think>")
         
+        // Also check for <think> format
+        if (thinkStartIndex === -1) {
+          thinkStartIndex = buffer.indexOf("<think>")
+        }
+        if (thinkEndIndex === -1) {
+          thinkEndIndex = buffer.indexOf("</think>")
+        }
+        
+        // Process thinking start tag
         if (thinkStartIndex !== -1 && !isInThinkingMode) {
-          // Found <think> tag, switch to thinking mode
+          // Found thinking tag start, switch to thinking mode
           isInThinkingMode = true
-          // Add content before <think> to fullContent
+          // Add content before thinking tag to fullContent
           const beforeThink = buffer.substring(0, thinkStartIndex)
           if (beforeThink.trim()) {
             fullContent += beforeThink
           }
-          // Remove everything up to and including <think>
-          buffer = buffer.substring(thinkStartIndex + 7) // 7 is length of "<think>"
+          // Remove everything up to and including the opening tag
+          const tagLength = buffer.substring(thinkStartIndex).match(/^<think>/) ? 7 : 7
+          buffer = buffer.substring(thinkStartIndex + tagLength)
         }
         
+        // Process thinking end tag
         if (thinkEndIndex !== -1 && isInThinkingMode) {
-          // Found </think> tag, switch back to content mode
+          // Found thinking tag end, switch back to content mode
           const thinkingPart = buffer.substring(0, thinkEndIndex)
           thinkingContent += thinkingPart
-          // Remove everything up to and including </think>
-          buffer = buffer.substring(thinkEndIndex + 8) // 8 is length of "</think>"
+          // Remove everything up to and including the closing tag
+          const tagLength = buffer.substring(thinkEndIndex).match(/^<\/think>/) ? 8 : 8
+          buffer = buffer.substring(thinkEndIndex + tagLength)
           isInThinkingMode = false
         }
         
-        // Process remaining buffer
+        // Process remaining buffer content
         if (!isInThinkingMode && buffer.length > 0) {
-          // Not in thinking mode, add to content
-          fullContent += buffer
-          buffer = ""
+          // Not in thinking mode - check if we have a complete chunk (no pending tags)
+          const nextThinkStart = buffer.indexOf("<think>")
+          const nextThinkStartAlt = buffer.indexOf("<think>")
+          const nextThinkStartPos = nextThinkStart === -1 ? nextThinkStartAlt : 
+                                   (nextThinkStartAlt === -1 ? nextThinkStart : Math.min(nextThinkStart, nextThinkStartAlt))
+          
+          if (nextThinkStartPos === -1) {
+            // No thinking tags in buffer, safe to add to content
+            fullContent += buffer
+            buffer = ""
+          } else {
+            // Has thinking tag ahead, only add content before it
+            fullContent += buffer.substring(0, nextThinkStartPos)
+            buffer = buffer.substring(nextThinkStartPos)
+          }
         } else if (isInThinkingMode && buffer.length > 0) {
-          // In thinking mode, check if we have complete text (no pending tags)
-          // If buffer doesn't contain tag markers, add to thinking
-          if (!buffer.includes("<think>") && !buffer.includes("</think>")) {
+          // In thinking mode - check if we have a complete chunk (no pending end tag)
+          const nextThinkEnd = buffer.indexOf("</think>")
+          const nextThinkEndAlt = buffer.indexOf("</think>")
+          const nextThinkEndPos = nextThinkEnd === -1 ? nextThinkEndAlt : 
+                                 (nextThinkEndAlt === -1 ? nextThinkEnd : Math.min(nextThinkEnd, nextThinkEndAlt))
+          
+          if (nextThinkEndPos === -1) {
+            // No end tag in buffer, safe to add to thinking
             thinkingContent += buffer
             buffer = ""
+          } else {
+            // Has end tag ahead, only add thinking before it
+            thinkingContent += buffer.substring(0, nextThinkEndPos)
+            buffer = buffer.substring(nextThinkEndPos)
           }
         }
       }
