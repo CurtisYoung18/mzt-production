@@ -5,7 +5,7 @@ import { useState, useRef, useEffect } from "react"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { Send, ThumbsUp, ThumbsDown, Paperclip, ImageIcon, Mic, FileText, X, Loader2, AlertCircle } from "lucide-react"
+import { Send, ThumbsUp, ThumbsDown, Paperclip, ImageIcon, Mic, FileText, X, Loader2, AlertCircle, Sparkles } from "lucide-react"
 import type { Message } from "@/types/chat"
 import MessageCard from "./message-card"
 
@@ -145,7 +145,7 @@ export default function ChatMain({
               </div>
             </div>
           ))}
-          {/* Loading indicator */}
+          {/* Loading indicator with thinking animation */}
           {isLoading && messages[messages.length - 1]?.role === "user" && (
             <div className="flex gap-3">
               <img
@@ -153,10 +153,15 @@ export default function ChatMain({
                 alt="福晓金"
                 className="w-10 h-10 rounded-full object-cover shrink-0 mt-1 bg-amber-50"
               />
-              <div className="bg-muted px-4 py-3 rounded-2xl rounded-tl-sm">
+              <div className="bg-gradient-to-r from-purple-50/50 to-blue-50/50 dark:from-purple-950/20 dark:to-blue-950/20 border border-purple-200/50 dark:border-purple-800/50 px-4 py-3 rounded-2xl rounded-tl-sm">
                 <div className="flex items-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span className="text-sm text-muted-foreground">正在思考...</span>
+                  <div className="relative">
+                    <Sparkles className="h-4 w-4 text-purple-600 dark:text-purple-400 animate-pulse" />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="h-2 w-2 bg-purple-400 rounded-full animate-ping" />
+                    </div>
+                  </div>
+                  <span className="text-sm text-purple-700 dark:text-purple-300 font-medium">正在思考...</span>
                 </div>
               </div>
             </div>
