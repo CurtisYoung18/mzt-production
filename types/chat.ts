@@ -5,6 +5,7 @@ export interface Message {
   timestamp: Date
   cardData?: CardData
   thinking?: string // AI thinking process (from <think> tags)
+  thinkingComplete?: boolean // Whether thinking process is complete
 }
 
 export interface CardData {

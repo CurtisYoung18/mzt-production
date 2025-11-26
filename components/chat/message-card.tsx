@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
@@ -14,7 +14,22 @@ interface MessageCardProps {
 
 export default function MessageCard({ message, userId }: MessageCardProps) {
   const [expanded, setExpanded] = useState(true)
-  const [thinkingExpanded, setThinkingExpanded] = useState(false)
+  // Auto-expand thinking while streaming, collapse when complete
+  const [thinkingExpanded, setThinkingExpanded] = useState(!message.thinkingComplete && !!message.thinking)
+  
+  // Auto-collapse thinking when it becomes complete
+  useEffect(() => {
+    if (message.thinkingComplete && thinkingExpanded) {
+      // Delay collapse slightly to show completion
+      const timer = setTimeout(() => {
+        setThinkingExpanded(false)
+      }, 1000)
+      return () => clearTimeout(timer)
+    } else if (!message.thinkingComplete && message.thinking) {
+      // Auto-expand while streaming
+      setThinkingExpanded(true)
+    }
+  }, [message.thinkingComplete, message.thinking])
 
   // Check if message has structured card data
   if (message.cardData) {
