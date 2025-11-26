@@ -240,8 +240,10 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
 
       // Helper function to parse content and extract thinking
       const parseContent = (text: string) => {
-        // Match <think>...</think> or <think>...</think> tags
-        // Also handle cases where opening tag is <think> and closing is </think>
+        // Match various thinking tag formats:
+        // 1. <think>...</think>
+        // 2. <think>...</think>
+        // 3. <think>...</think>
         let thinkingMatch = text.match(/<think>(.*?)<\/redacted_reasoning>/s)
         if (!thinkingMatch) {
           thinkingMatch = text.match(/<think>(.*?)<\/think>/s)
