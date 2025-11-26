@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
-import { Download, ChevronDown, ChevronUp } from "lucide-react"
+import { Download, ChevronDown, ChevronUp, Brain, Sparkles } from "lucide-react"
 import type { Message } from "@/types/chat"
 
 interface MessageCardProps {
@@ -14,6 +14,7 @@ interface MessageCardProps {
 
 export default function MessageCard({ message, userId }: MessageCardProps) {
   const [expanded, setExpanded] = useState(true)
+  const [thinkingExpanded, setThinkingExpanded] = useState(false)
 
   // Check if message has structured card data
   if (message.cardData) {
@@ -114,10 +115,49 @@ export default function MessageCard({ message, userId }: MessageCardProps) {
     )
   }
 
-  // Regular text message - styled like the reference
+  // Regular text message with thinking process
   return (
-    <div className="bg-secondary/80 px-4 py-3 rounded-2xl rounded-tl-sm max-w-full">
-      <p className="whitespace-pre-wrap text-foreground leading-relaxed">{message.content}</p>
+    <div className="max-w-full space-y-2">
+      {/* Thinking Process - Collapsible (like ChatGPT) */}
+      {message.thinking && (
+        <div className="bg-gradient-to-r from-purple-50/50 to-blue-50/50 dark:from-purple-950/20 dark:to-blue-950/20 border border-purple-200/50 dark:border-purple-800/50 rounded-lg overflow-hidden mb-2">
+          <button
+            onClick={() => setThinkingExpanded(!thinkingExpanded)}
+            className="w-full px-4 py-2.5 flex items-center justify-between hover:bg-purple-50/50 dark:hover:bg-purple-950/30 transition-colors group"
+          >
+            <div className="flex items-center gap-2 text-sm">
+              <div className="flex items-center gap-1.5">
+                <Sparkles className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                <span className="font-medium text-purple-700 dark:text-purple-300">思考过程</span>
+              </div>
+              {!thinkingExpanded && (
+                <span className="text-xs text-muted-foreground ml-2 truncate max-w-[200px]">
+                  {message.thinking.substring(0, 50)}...
+                </span>
+              )}
+            </div>
+            {thinkingExpanded ? (
+              <ChevronUp className="h-4 w-4 text-purple-600 dark:text-purple-400 group-hover:text-purple-700 dark:group-hover:text-purple-300" />
+            ) : (
+              <ChevronDown className="h-4 w-4 text-purple-600 dark:text-purple-400 group-hover:text-purple-700 dark:group-hover:text-purple-300" />
+            )}
+          </button>
+          {thinkingExpanded && (
+            <div className="px-4 py-3 border-t border-purple-200/50 dark:border-purple-800/50 bg-white/50 dark:bg-black/20">
+              <div className="prose prose-sm max-w-none">
+                <p className="whitespace-pre-wrap text-muted-foreground leading-relaxed text-sm font-mono">
+                  {message.thinking}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+      
+      {/* Main Content */}
+      <div className="bg-secondary/80 px-4 py-3 rounded-2xl rounded-tl-sm">
+        <p className="whitespace-pre-wrap text-foreground leading-relaxed">{message.content}</p>
+      </div>
     </div>
   )
 }

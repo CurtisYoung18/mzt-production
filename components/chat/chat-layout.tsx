@@ -236,6 +236,19 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
       const reader = response.body?.getReader()
       const decoder = new TextDecoder()
       let fullContent = ""
+      let thinkingContent = ""
+
+      // Helper function to parse content and extract thinking
+      const parseContent = (text: string) => {
+        // Match <think>...</think> tags
+        const thinkingMatch = text.match(/<think>(.*?)<\/redacted_reasoning>/s)
+        if (thinkingMatch) {
+          const thinking = thinkingMatch[1].trim()
+          const content = text.replace(/<think>.*?<\/redacted_reasoning>/s, "").trim()
+          return { thinking, content }
+        }
+        return { thinking: null, content: text }
+      }
 
       if (reader) {
         while (true) {
@@ -256,7 +269,25 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
                   // Text content - append to fullContent
                   if (typeof event.data === "string") {
                     fullContent += event.data
-                    setMessages((prev) => prev.map((m) => (m.id === aiMessageId ? { ...m, content: fullContent } : m)))
+                    
+                    // Parse thinking and content
+                    const parsed = parseContent(fullContent)
+                    if (parsed.thinking) {
+                      thinkingContent = parsed.thinking
+                      fullContent = parsed.content
+                    }
+                    
+                    setMessages((prev) =>
+                      prev.map((m) =>
+                        m.id === aiMessageId
+                          ? {
+                              ...m,
+                              content: fullContent,
+                              thinking: thinkingContent || undefined,
+                            }
+                          : m
+                      )
+                    )
                   }
                 } else if (event.code === 10 && event.message === "FlowOutput") {
                   // FlowOutput - extract content from output array
@@ -266,13 +297,41 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
                         if (typeof output.content === "string") {
                           if (!fullContent) {
                             fullContent = output.content
+                            const parsed = parseContent(fullContent)
+                            if (parsed.thinking) {
+                              thinkingContent = parsed.thinking
+                              fullContent = parsed.content
+                            }
                             setMessages((prev) =>
-                              prev.map((m) => (m.id === aiMessageId ? { ...m, content: fullContent } : m)),
+                              prev.map((m) =>
+                                m.id === aiMessageId
+                                  ? {
+                                      ...m,
+                                      content: fullContent,
+                                      thinking: thinkingContent || undefined,
+                                    }
+                                  : m
+                              )
                             )
                           }
                         } else if (output.content.text) {
                           fullContent += output.content.text
-                          setMessages((prev) => prev.map((m) => (m.id === aiMessageId ? { ...m, content: fullContent } : m)))
+                          const parsed = parseContent(fullContent)
+                          if (parsed.thinking) {
+                            thinkingContent = parsed.thinking
+                            fullContent = parsed.content
+                          }
+                          setMessages((prev) =>
+                            prev.map((m) =>
+                              m.id === aiMessageId
+                                ? {
+                                    ...m,
+                                    content: fullContent,
+                                    thinking: thinkingContent || undefined,
+                                  }
+                                : m
+                            )
+                          )
                         }
                       }
                     }
@@ -281,10 +340,36 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
                   // Audio transcript
                   if (event.data?.transcript) {
                     fullContent += event.data.transcript
-                    setMessages((prev) => prev.map((m) => (m.id === aiMessageId ? { ...m, content: fullContent } : m)))
+                    setMessages((prev) =>
+                      prev.map((m) =>
+                        m.id === aiMessageId
+                          ? {
+                              ...m,
+                              content: fullContent,
+                              thinking: thinkingContent || undefined,
+                            }
+                          : m
+                      )
+                    )
                   }
                 } else if (event.code === 0 && event.message === "End") {
-                  // Stream ended - no action needed, just log
+                  // Stream ended - final parse
+                  const parsed = parseContent(fullContent)
+                  if (parsed.thinking) {
+                    thinkingContent = parsed.thinking
+                    fullContent = parsed.content
+                  }
+                  setMessages((prev) =>
+                    prev.map((m) =>
+                      m.id === aiMessageId
+                        ? {
+                            ...m,
+                            content: fullContent || "抱歉，我暂时无法处理您的请求，请稍后再试。",
+                            thinking: thinkingContent || undefined,
+                          }
+                        : m
+                    )
+                  )
                   console.log("[v0] Stream ended")
                 } else if (event.code === 11 && event.message === "MessageInfo") {
                   // MessageInfo - log for debugging
@@ -301,9 +386,27 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
         }
       }
 
-      if (!fullContent) {
+      // Final parse if stream ended without End event
+      if (fullContent) {
+        const parsed = parseContent(fullContent)
+        if (parsed.thinking) {
+          thinkingContent = parsed.thinking
+          fullContent = parsed.content
+        }
         setMessages((prev) =>
-          prev.map((m) => (m.id === aiMessageId ? { ...m, content: "抱歉，我暂时无法处理您的请求，请稍后再试。" } : m)),
+          prev.map((m) =>
+            m.id === aiMessageId
+              ? {
+                  ...m,
+                  content: fullContent,
+                  thinking: thinkingContent || undefined,
+                }
+              : m
+          )
+        )
+      } else {
+        setMessages((prev) =>
+          prev.map((m) => (m.id === aiMessageId ? { ...m, content: "抱歉，我暂时无法处理您的请求，请稍后再试。" } : m))
         )
       }
     } catch (error) {

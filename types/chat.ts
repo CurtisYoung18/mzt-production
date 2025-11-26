@@ -4,6 +4,7 @@ export interface Message {
   content: string
   timestamp: Date
   cardData?: CardData
+  thinking?: string // AI thinking process (from <think> tags)
 }
 
 export interface CardData {
