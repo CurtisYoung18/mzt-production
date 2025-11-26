@@ -232,38 +232,57 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
         },
       ])
 
-      // Handle streaming response
+      // Handle streaming response with real-time thinking parsing
       const reader = response.body?.getReader()
       const decoder = new TextDecoder()
       let fullContent = ""
       let thinkingContent = ""
+      let isInThinkingMode = false
+      let buffer = "" // Buffer for incomplete tags
 
-      // Helper function to parse content and extract thinking
-      const parseContent = (text: string) => {
-        // Match <think>...</think> tags (primary format from GPTBots)
-        let thinkingMatch = text.match(/<think>([\s\S]*?)<\/redacted_reasoning>/s)
+      // Helper function to process text chunk and extract thinking/content in real-time
+      const processTextChunk = (chunk: string) => {
+        // Add chunk to buffer
+        buffer += chunk
         
-        // Also try <think>...</think> format as fallback
-        if (!thinkingMatch) {
-          thinkingMatch = text.match(/<think>([\s\S]*?)<\/think>/s)
+        // Check for thinking tag start
+        const thinkStartIndex = buffer.indexOf("<think>")
+        const thinkEndIndex = buffer.indexOf("</think>")
+        
+        if (thinkStartIndex !== -1 && !isInThinkingMode) {
+          // Found <think> tag, switch to thinking mode
+          isInThinkingMode = true
+          // Add content before <think> to fullContent
+          const beforeThink = buffer.substring(0, thinkStartIndex)
+          if (beforeThink.trim()) {
+            fullContent += beforeThink
+          }
+          // Remove everything up to and including <think>
+          buffer = buffer.substring(thinkStartIndex + 7) // 7 is length of "<think>"
         }
         
-        // Also handle mixed formats
-        if (!thinkingMatch) {
-          thinkingMatch = text.match(/<think>([\s\S]*?)<\/redacted_reasoning>/s)
+        if (thinkEndIndex !== -1 && isInThinkingMode) {
+          // Found </think> tag, switch back to content mode
+          const thinkingPart = buffer.substring(0, thinkEndIndex)
+          thinkingContent += thinkingPart
+          // Remove everything up to and including </think>
+          buffer = buffer.substring(thinkEndIndex + 8) // 8 is length of "</think>"
+          isInThinkingMode = false
         }
         
-        if (thinkingMatch && thinkingMatch[1]) {
-          const thinking = thinkingMatch[1].trim()
-          // Remove all variations of thinking tags from content
-          const content = text
-            .replace(/<think>[\s\S]*?<\/redacted_reasoning>/s, "")
-            .replace(/<think>[\s\S]*?<\/think>/s, "")
-            .replace(/<think>[\s\S]*?<\/redacted_reasoning>/s, "")
-            .trim()
-          return { thinking, content }
+        // Process remaining buffer
+        if (!isInThinkingMode && buffer.length > 0) {
+          // Not in thinking mode, add to content
+          fullContent += buffer
+          buffer = ""
+        } else if (isInThinkingMode && buffer.length > 0) {
+          // In thinking mode, check if we have complete text (no pending tags)
+          // If buffer doesn't contain tag markers, add to thinking
+          if (!buffer.includes("<think>") && !buffer.includes("</think>")) {
+            thinkingContent += buffer
+            buffer = ""
+          }
         }
-        return { thinking: null, content: text }
       }
 
       if (reader) {
@@ -282,18 +301,11 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
 
                 // Handle different event types per API docs
                 if (event.code === 3 && event.message === "Text") {
-                  // Text content - append to fullContent
+                  // Text content - process in real-time
                   if (typeof event.data === "string") {
-                    fullContent += event.data
+                    processTextChunk(event.data)
                     
-                    // Parse thinking and content - try to extract thinking as we receive data
-                    const parsed = parseContent(fullContent)
-                    if (parsed.thinking && parsed.thinking.length > 0) {
-                      thinkingContent = parsed.thinking
-                      // Keep the content but remove thinking tags
-                      fullContent = parsed.content
-                    }
-                    
+                    // Update UI in real-time
                     setMessages((prev) =>
                       prev.map((m) =>
                         m.id === aiMessageId
@@ -312,44 +324,23 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
                     for (const output of event.data) {
                       if (output.content) {
                         if (typeof output.content === "string") {
-                          if (!fullContent) {
-                            fullContent = output.content
-                            const parsed = parseContent(fullContent)
-                            if (parsed.thinking) {
-                              thinkingContent = parsed.thinking
-                              fullContent = parsed.content
-                            }
-                            setMessages((prev) =>
-                              prev.map((m) =>
-                                m.id === aiMessageId
-                                  ? {
-                                      ...m,
-                                      content: fullContent,
-                                      thinking: thinkingContent || undefined,
-                                    }
-                                  : m
-                              )
-                            )
-                          }
+                          processTextChunk(output.content)
                         } else if (output.content.text) {
-                          fullContent += output.content.text
-                          const parsed = parseContent(fullContent)
-                          if (parsed.thinking) {
-                            thinkingContent = parsed.thinking
-                            fullContent = parsed.content
-                          }
-                          setMessages((prev) =>
-                            prev.map((m) =>
-                              m.id === aiMessageId
-                                ? {
-                                    ...m,
-                                    content: fullContent,
-                                    thinking: thinkingContent || undefined,
-                                  }
-                                : m
-                            )
-                          )
+                          processTextChunk(output.content.text)
                         }
+                        
+                        // Update UI in real-time
+                        setMessages((prev) =>
+                          prev.map((m) =>
+                            m.id === aiMessageId
+                              ? {
+                                  ...m,
+                                  content: fullContent || "",
+                                  thinking: thinkingContent || undefined,
+                                }
+                              : m
+                          )
+                        )
                       }
                     }
                   }
@@ -370,12 +361,16 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
                     )
                   }
                 } else if (event.code === 0 && event.message === "End") {
-                  // Stream ended - final parse
-                  const parsed = parseContent(fullContent)
-                  if (parsed.thinking) {
-                    thinkingContent = parsed.thinking
-                    fullContent = parsed.content
+                  // Stream ended - process any remaining buffer
+                  if (buffer.trim()) {
+                    if (isInThinkingMode) {
+                      thinkingContent += buffer
+                    } else {
+                      fullContent += buffer
+                    }
+                    buffer = ""
                   }
+                  
                   setMessages((prev) =>
                     prev.map((m) =>
                       m.id === aiMessageId
@@ -403,19 +398,22 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
         }
       }
 
-      // Final parse if stream ended without End event
-      if (fullContent) {
-        const parsed = parseContent(fullContent)
-        if (parsed.thinking) {
-          thinkingContent = parsed.thinking
-          fullContent = parsed.content
+      // Final processing if stream ended without End event
+      if (buffer.trim()) {
+        if (isInThinkingMode) {
+          thinkingContent += buffer
+        } else {
+          fullContent += buffer
         }
+      }
+      
+      if (fullContent || thinkingContent) {
         setMessages((prev) =>
           prev.map((m) =>
             m.id === aiMessageId
               ? {
                   ...m,
-                  content: fullContent,
+                  content: fullContent || "抱歉，我暂时无法处理您的请求，请稍后再试。",
                   thinking: thinkingContent || undefined,
                 }
               : m
