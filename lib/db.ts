@@ -1,6 +1,11 @@
 import { neon } from "@neondatabase/serverless"
 
-export const sql = neon(process.env.DATABASE_URL!)
+if (!process.env.DATABASE_URL) {
+  console.error("⚠️  DATABASE_URL environment variable is not set!")
+  console.error("Please create a .env.local file with your database connection string.")
+}
+
+export const sql = neon(process.env.DATABASE_URL || "")
 
 export async function authenticateUser(account: string, password: string) {
   const result = await sql`
