@@ -386,11 +386,16 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
                   if (buffer.trim()) {
                     if (isInThinkingMode) {
                       thinkingContent += buffer
+                      thinkingComplete = true
                     } else {
                       fullContent += buffer
                     }
                     buffer = ""
                   }
+                  
+                  // Clean up any remaining tags
+                  thinkingContent = thinkingContent.replace(/<\/think>/g, "").trim()
+                  fullContent = fullContent.replace(/<think>/g, "").replace(/<\/think>/g, "").trim()
                   
                   setMessages((prev) =>
                     prev.map((m) =>
@@ -399,6 +404,7 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
                             ...m,
                             content: fullContent || "抱歉，我暂时无法处理您的请求，请稍后再试。",
                             thinking: thinkingContent || undefined,
+                            thinkingComplete: true,
                           }
                         : m
                     )
@@ -423,10 +429,15 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
       if (buffer.trim()) {
         if (isInThinkingMode) {
           thinkingContent += buffer
+          thinkingComplete = true
         } else {
           fullContent += buffer
         }
       }
+      
+      // Clean up any remaining tags
+      thinkingContent = thinkingContent.replace(/<\/think>/g, "").trim()
+      fullContent = fullContent.replace(/<think>/g, "").replace(/<\/think>/g, "").trim()
       
       if (fullContent || thinkingContent) {
         setMessages((prev) =>
@@ -436,6 +447,7 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
                   ...m,
                   content: fullContent || "抱歉，我暂时无法处理您的请求，请稍后再试。",
                   thinking: thinkingContent || undefined,
+                  thinkingComplete: thinkingComplete || true,
                 }
               : m
           )
