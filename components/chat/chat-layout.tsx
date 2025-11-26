@@ -286,10 +286,11 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
                   if (typeof event.data === "string") {
                     fullContent += event.data
                     
-                    // Parse thinking and content
+                    // Parse thinking and content - try to extract thinking as we receive data
                     const parsed = parseContent(fullContent)
-                    if (parsed.thinking) {
+                    if (parsed.thinking && parsed.thinking.length > 0) {
                       thinkingContent = parsed.thinking
+                      // Keep the content but remove thinking tags
                       fullContent = parsed.content
                     }
                     
@@ -298,7 +299,7 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
                         m.id === aiMessageId
                           ? {
                               ...m,
-                              content: fullContent,
+                              content: fullContent || "",
                               thinking: thinkingContent || undefined,
                             }
                           : m
