@@ -53,8 +53,15 @@ async function fetchWithSSLBypass(
       })
     })
 
-    req.on("error", (error) => {
-      reject(error)
+    req.on("error", (error: any) => {
+      // Handle SSL errors more gracefully
+      if (error.code === "EPROTO" || error.message?.includes("SSL") || error.message?.includes("TLS")) {
+        const errorMsg = `SSL/TLS error: ${error.message}. ` +
+          `If the server uses HTTP instead of HTTPS, update GPTBOTS_BASE_URL to use http://`
+        reject(new Error(errorMsg))
+      } else {
+        reject(error)
+      }
     })
 
     // Write body if present
@@ -137,8 +144,15 @@ function fetchStreamWithSSLBypass(
       resolve(readable)
     })
 
-    req.on("error", (error) => {
-      reject(error)
+    req.on("error", (error: any) => {
+      // Handle SSL errors more gracefully
+      if (error.code === "EPROTO" || error.message?.includes("SSL") || error.message?.includes("TLS")) {
+        const errorMsg = `SSL/TLS error: ${error.message}. ` +
+          `If the server uses HTTP instead of HTTPS, update GPTBOTS_BASE_URL to use http://`
+        reject(new Error(errorMsg))
+      } else {
+        reject(error)
+      }
     })
 
     // Write body if present
