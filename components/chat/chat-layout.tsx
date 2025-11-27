@@ -382,14 +382,14 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
     // 手机签约完成
     if (cardType === "sms_sign" && action === "confirm") {
       try {
-        // 手机签约: 70000 → 70001
+        // 手机签约完成: 1015 → 1016 (API 会自动跳转到 1018)
         await fetch("/api/user/attribute", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             userId: user.userId,
             attributeName: "phase",
-            value: "70001",
+            value: "1016",
           }),
         })
 
@@ -406,14 +406,14 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
     // 银行卡签约完成
     if (cardType === "bank_sign" && action === "confirm") {
       try {
-        // 银行卡签约: 80000 → 80001
+        // 银行卡签约完成: 1018 → 1019 (API 会自动跳转到 1029)
         await fetch("/api/user/attribute", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             userId: user.userId,
             attributeName: "phase",
-            value: "80001",
+            value: "1019",
           }),
         })
 

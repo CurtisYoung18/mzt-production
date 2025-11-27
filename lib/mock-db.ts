@@ -140,11 +140,14 @@ export const mockAccountInfo = [
 ]
 
 // 用户属性数据
-// Phase 字典:
-// 30000: 未授权 | 30001: 完成授权 | 30002: 已授权
-// 80000: 本人未手机签约 | 80001: 本人完成手机签约 | 80002: 本人已手机签约
-// 90000: 本人未银行卡签约 | 90001: 本人完成银行卡签约 | 90002: 本人已银行卡签约
-// 15000: 满足租房提取条件
+// Phase 字典（新版 1000-1031 线性递增）：
+// 1000: 未开始 | 1001: 开始办理
+// 1005: 未检验婚姻 | 1006: 未婚 | 1007: 已婚
+// 1015: 本人未手机签约 | 1016: 完成手机签约 | 1017: 已手机签约
+// 1018: 本人未银行卡签约 | 1019: 完成银行卡签约 | 1020: 已银行卡签约
+// 1021-1028: 后续校验（多孩、缴存、房产、贷款）
+// 1029: 满足租房提取条件 | 1030: 人脸识别 | 1031: 提交成功
+
 // 初始用户属性配置（用于重置）
 const INITIAL_USER_ATTRIBUTES: Record<string, {
   city: string
@@ -167,7 +170,7 @@ const INITIAL_USER_ATTRIBUTES: Record<string, {
 }> = {
   "U001": {
     city: "福州",
-    phase: "10000",
+    phase: "1000", // 未开始 - 演示完整流程
     is_auth: false,
     is_authenticated: true,
     is_married: true,
@@ -176,7 +179,7 @@ const INITIAL_USER_ATTRIBUTES: Record<string, {
     permit_extract_types: ["租房", "购房", "还贷"],
     can_extract: true,
     cannot_extract_reason: null,
-    sms_signed: true,
+    sms_signed: false,
     bank_card_signed: true,
     current_extract_type: null,
     current_type_needs_auth: false,
@@ -186,7 +189,7 @@ const INITIAL_USER_ATTRIBUTES: Record<string, {
   },
   "U002": {
     city: "泉州",
-    phase: "70000",
+    phase: "1015", // 本人未手机签约 - 演示手机签约流程
     is_auth: true,
     is_authenticated: false,
     is_married: false,
@@ -205,7 +208,7 @@ const INITIAL_USER_ATTRIBUTES: Record<string, {
   },
   "U003": {
     city: "厦门",
-    phase: "80000",
+    phase: "1018", // 本人未银行卡签约 - 演示银行卡签约流程
     is_auth: true,
     is_authenticated: true,
     is_married: false,
@@ -224,7 +227,7 @@ const INITIAL_USER_ATTRIBUTES: Record<string, {
   },
   "U004": {
     city: "漳州",
-    phase: "15000",
+    phase: "1029", // 满足租房提取条件 - 演示提取流程
     is_auth: true,
     is_authenticated: true,
     is_married: true,
@@ -243,11 +246,22 @@ const INITIAL_USER_ATTRIBUTES: Record<string, {
   }
 }
 
+// Phase 字典（新版 1000-1031 线性递增）：
+// 1000: 未开始
+// 1001: 开始办理
+// 1005: 未检验婚姻 -> 1006: 未婚, 1007: 已婚
+// 1015: 本人未手机签约 -> 1016: 完成手机签约, 1017: 已手机签约
+// 1018: 本人未银行卡签约 -> 1019: 完成银行卡签约, 1020: 已银行卡签约
+// 1021-1028: 后续校验
+// 1029: 满足租房提取条件
+// 1030: 人脸识别
+// 1031: 提交成功
+
 export const mockUserAttributes = [
   {
     user_id: "U001",
     city: "福州",
-    phase: "10000", // 未授权 - 演示授权流程
+    phase: "1000", // 未开始 - 演示完整流程
     is_auth: false, // GPTBots 用户属性：是否已授权（用于触发授权卡片）
     is_authenticated: true,
     is_married: true,
@@ -256,8 +270,8 @@ export const mockUserAttributes = [
     permit_extract_types: ["租房", "购房", "还贷"],
     can_extract: true,
     cannot_extract_reason: null,
-    sms_signed: true,
-    bank_card_signed: true,
+    sms_signed: false,
+    bank_card_signed: false,
     current_extract_type: null,
     current_type_needs_auth: false,
     current_type_authorized: false,
@@ -267,7 +281,7 @@ export const mockUserAttributes = [
   {
     user_id: "U002",
     city: "泉州",
-    phase: "80000", // 本人未手机签约 - 演示手机签约流程
+    phase: "1015", // 本人未手机签约 - 演示手机签约流程
     is_auth: true, // 已授权
     is_authenticated: false,
     is_married: false,
@@ -287,7 +301,7 @@ export const mockUserAttributes = [
   {
     user_id: "U003",
     city: "厦门",
-    phase: "90000", // 本人未银行卡签约 - 演示银行卡签约流程
+    phase: "1018", // 本人未银行卡签约 - 演示银行卡签约流程
     is_auth: true, // 已授权
     is_authenticated: true,
     is_married: false,
@@ -307,7 +321,7 @@ export const mockUserAttributes = [
   {
     user_id: "U004",
     city: "莆田",
-    phase: "15000", // 满足租房提取条件 - 演示提取流程
+    phase: "1029", // 满足租房提取条件 - 演示提取流程
     is_auth: true, // 已授权
     is_authenticated: true,
     is_married: true,
@@ -316,8 +330,8 @@ export const mockUserAttributes = [
     permit_extract_types: ["租房", "购房"],
     can_extract: true,
     cannot_extract_reason: null,
-    sms_signed: false,
-    bank_card_signed: false,
+    sms_signed: true,
+    bank_card_signed: true,
     current_extract_type: null,
     current_type_needs_auth: false,
     current_type_authorized: false,

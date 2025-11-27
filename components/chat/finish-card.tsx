@@ -11,7 +11,11 @@ import {
   Loader2,
   QrCode,
   ScanFace,
-  Send
+  Send,
+  Home,
+  Clock,
+  ArrowLeft,
+  ChevronRight
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { AccountInfo } from "@/types/chat"
@@ -26,7 +30,15 @@ interface FinishCardProps {
   className?: string
 }
 
-type CardStage = "details" | "face_auth" | "verifying" | "success"
+type CardStage = "details" | "face_auth" | "verifying" | "success" | "records"
+
+// 模拟提取记录数据
+const mockRecords = [
+  { id: "EXT202411270001", type: "租房提取", amount: "1,500.00", status: "pending", statusText: "审核中", date: "2024-11-27" },
+  { id: "EXT202410150002", type: "租房提取", amount: "1,500.00", status: "success", statusText: "提取成功", date: "2024-10-15" },
+  { id: "EXT202409120003", type: "租房提取", amount: "1,500.00", status: "success", statusText: "提取成功", date: "2024-09-12" },
+  { id: "EXT202408080004", type: "购房提取", amount: "50,000.00", status: "success", statusText: "提取成功", date: "2024-08-08" },
+]
 
 export default function FinishCard({ 
   message, 
@@ -429,12 +441,104 @@ export default function FinishCard({
                   transition={{ delay: 0.5 }}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  onClick={onViewRecords}
+                  onClick={() => setStage("records")}
                   className="w-full py-3 rounded-xl border-2 border-amber-300 text-amber-600 dark:text-amber-400 font-medium transition-all hover:bg-amber-50 dark:hover:bg-amber-900/20 flex items-center justify-center gap-2"
                 >
                   <FileText className="w-4 h-4" />
                   查看提取记录 &gt;
                 </motion.button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* 提取记录页面 */}
+          {stage === "records" && (
+            <motion.div
+              key="records"
+              initial={{ opacity: 0, rotateY: -90 }}
+              animate={{ opacity: 1, rotateY: 0 }}
+              exit={{ opacity: 0, rotateY: 90 }}
+              transition={{ duration: 0.4 }}
+              className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-lg overflow-hidden max-w-md"
+              style={{ transformStyle: "preserve-3d" }}
+            >
+              {/* 标题 */}
+              <div className="px-4 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white flex items-center gap-3">
+                <button
+                  onClick={() => setStage("success")}
+                  className="p-1 rounded-full hover:bg-white/20 transition-colors"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                </button>
+                <h3 className="text-base font-semibold flex-1">提取记录</h3>
+              </div>
+
+              {/* 统计 */}
+              <div className="p-4 bg-gradient-to-b from-amber-50 to-white dark:from-amber-900/10 dark:to-gray-900">
+                <div className="flex justify-between text-center">
+                  <div>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">¥54,500</p>
+                    <p className="text-xs text-gray-500">累计提取</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-green-600">4</p>
+                    <p className="text-xs text-gray-500">成功次数</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-amber-500">1</p>
+                    <p className="text-xs text-gray-500">处理中</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* 记录列表 */}
+              <div className="p-4 max-h-64 overflow-y-auto">
+                <div className="space-y-3">
+                  {mockRecords.map((record, index) => (
+                    <motion.div
+                      key={record.id}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: index * 0.1 }}
+                      className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-xl"
+                    >
+                      <div className={cn(
+                        "w-10 h-10 rounded-lg flex items-center justify-center",
+                        record.status === "success" ? "bg-blue-100 dark:bg-blue-900/30 text-blue-600" :
+                        "bg-amber-100 dark:bg-amber-900/30 text-amber-600"
+                      )}>
+                        <Home className="h-5 w-5" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium text-sm text-gray-900 dark:text-gray-100">{record.type}</span>
+                          <span className="font-semibold text-gray-900 dark:text-gray-100">¥{record.amount}</span>
+                        </div>
+                        <div className="flex items-center justify-between mt-1">
+                          <span className="text-xs text-gray-500">{record.date}</span>
+                          <span className={cn(
+                            "text-xs px-2 py-0.5 rounded-full",
+                            record.status === "success" 
+                              ? "bg-green-100 dark:bg-green-900/30 text-green-600" 
+                              : "bg-amber-100 dark:bg-amber-900/30 text-amber-600"
+                          )}>
+                            {record.statusText}
+                          </span>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+
+              {/* 返回按钮 */}
+              <div className="p-4 border-t border-gray-100 dark:border-gray-800">
+                <button
+                  onClick={() => setStage("success")}
+                  className="w-full py-2.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
+                >
+                  返回
+                </button>
               </div>
             </motion.div>
           )}

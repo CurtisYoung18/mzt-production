@@ -63,54 +63,31 @@ export default function ExtractFlowChart({
   }
 
   const { is_auth, is_married, permit_extract_types, phase } = userAttributes
-  const phaseNum = parseInt(phase) || 10000
+  const phaseNum = parseInt(phase) || 1000
 
   // 判断各步骤的完成状态
-  // 流程阶段参考（注意：编号不是线性递增的）：
-  // 10000: 未开始 -> 20000: 提取前校验 -> 30000: 婚姻检验
-  // 70000: 手机签约 -> 80000: 银行卡签约 -> 90000: 多孩家庭
-  // 11000: 缴存提取 -> 12000: 房产 -> 13000: 贷款 -> 14000: 满足条件
-  // 注意：11000-14000 的编号比 70000-90000 小，需要特殊处理
-  
-  // 定义 phase 到流程顺序的映射
-  const getPhaseOrder = (p: number): number => {
-    if (p < 20000) return 0  // 未开始
-    if (p < 30000) return 1  // 提取前校验
-    if (p < 40000) return 2  // 婚姻检验 (30000-39999)
-    if (p < 60000) return 3  // 配偶相关 (40000-59999)
-    if (p < 70000) return 4  // 账户状态 (60000-69999)
-    if (p < 80000) return 5  // 手机签约 (70000-79999)
-    if (p < 90000) return 6  // 银行卡签约 (80000-89999)
-    if (p >= 90000 && p < 11000) return 7  // 多孩家庭 (90000-10999) - 不可能的范围
-    // 注意：这里有个编号断层，90000 之后是 11000
-    if (p >= 90000) return 7  // 多孩家庭检查完成
-    if (p >= 11000 && p < 12000) return 8  // 缴存提取 (11000-11999)
-    if (p >= 12000 && p < 13000) return 9  // 房产 (12000-12999)
-    if (p >= 13000 && p < 14000) return 10 // 贷款 (13000-13999)
-    if (p >= 14000 && p < 15000) return 11 // 满足条件 (14000-14999)
-    return 12 // 完成
-  }
-  
-  // 特殊处理：判断是否进入了后续校验阶段（11000-14999）
-  const isInLaterPhase = (p: number): boolean => {
-    return (p >= 11000 && p < 15000) || p >= 90000
-  }
-  
-  const phaseOrder = getPhaseOrder(phaseNum)
-  const inLaterPhase = isInLaterPhase(phaseNum)
+  // Phase 字典（新版 1000-1031 线性递增，可直接用大小比较）：
+  // 1000: 未开始 | 1001: 开始办理
+  // 1005: 未检验婚姻 | 1006: 未婚 | 1007: 已婚
+  // 1015: 本人未手机签约 | 1016: 完成手机签约 | 1017: 已手机签约
+  // 1018: 本人未银行卡签约 | 1019: 完成银行卡签约 | 1020: 已银行卡签约
+  // 1021: 多孩家庭 | 1022: 非多孩家庭
+  // 1023: 提取/缴纳不通过 | 1024: 提取/缴纳通过
+  // 1025: 缴存地无房产 | 1026: 缴存地有房产
+  // 1027: 无未结清贷款 | 1028: 有未结清贷款
+  // 1029: 满足租房提取条件 | 1030: 人脸识别 | 1031: 提交成功
   
   const isAuthCompleted = is_auth
-  const isExtractTypeSelected = !!selectedExtractType || phaseOrder >= 2
-  const isMarriageChecked = phaseOrder >= 5 // 进入签约阶段说明婚姻状态已检查
-  const isSmsSignCompleted = phaseOrder >= 6 // 进入银行卡签约阶段说明手机已签约
-  const isBankSignCompleted = inLaterPhase // 进入后续阶段(11000-14999或>=90000)说明银行卡已签约
+  const isExtractTypeSelected = !!selectedExtractType || phaseNum >= 1005
+  const isMarriageChecked = phaseNum >= 1007 || phaseNum >= 1015 // 已婚/未婚后进入签约
+  const isSmsSignCompleted = phaseNum >= 1018 // 进入银行卡签约阶段
+  const isBankSignCompleted = phaseNum >= 1021 // 进入后续校验阶段
   const isSigningCompleted = isSmsSignCompleted && isBankSignCompleted
-  // 后续检查步骤必须在 inLaterPhase 为 true 且 phaseNum 在对应范围内
-  const isMultiChildChecked = inLaterPhase && (phaseNum >= 11000 || phaseNum >= 90000)
-  const isDepositChecked = inLaterPhase && phaseNum >= 12000 && phaseNum < 90000
-  const isPropertyChecked = inLaterPhase && phaseNum >= 13000 && phaseNum < 90000
-  const isLoanChecked = inLaterPhase && phaseNum >= 14000 && phaseNum < 90000
-  const isExtractDetailsReady = inLaterPhase && phaseNum >= 14000 && phaseNum < 90000
+  const isMultiChildChecked = phaseNum >= 1022 // 非多孩家庭
+  const isDepositChecked = phaseNum >= 1024 // 提取/缴纳通过
+  const isPropertyChecked = phaseNum >= 1025 // 缴存地无房产
+  const isLoanChecked = phaseNum >= 1027 // 无未结清贷款
+  const isExtractDetailsReady = phaseNum >= 1029 // 满足提取条件
   const isSubmitted = isFinished
 
   // 判断当前激活步骤
@@ -120,13 +97,10 @@ export default function ExtractFlowChart({
     if (!isMarriageChecked) return "marriage"
     if (!isSmsSignCompleted) return "sms_sign"
     if (!isBankSignCompleted) return "bank_sign"
-    // 只有进入后续校验阶段才显示这些步骤的激活状态
-    if (inLaterPhase) {
-      if (!isMultiChildChecked) return "multi_child"
-      if (!isDepositChecked) return "deposit"
-      if (!isPropertyChecked) return "property"
-      if (!isLoanChecked) return "loan"
-    }
+    if (!isMultiChildChecked) return "multi_child"
+    if (!isDepositChecked) return "deposit"
+    if (!isPropertyChecked) return "property"
+    if (!isLoanChecked) return "loan"
     if (!isExtractDetailsReady) return "extract_details"
     if (!isSubmitted) return "submit"
     return "done"
