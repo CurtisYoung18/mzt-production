@@ -66,16 +66,23 @@ export default function ExtractFlowChart({
   const phaseNum = parseInt(phase) || 10000
 
   // 判断各步骤的完成状态
+  // 流程阶段参考：
+  // 30000: 未检验婚姻 -> 30001: 未婚, 30002: 已婚
+  // 70000: 未手机签约 -> 70001: 完成手机签约
+  // 80000: 未银行卡签约 -> 80001: 完成银行卡签约
+  // 90000-13001: 中间校验状态
+  // 14000: 满足提取条件
+  
   const isAuthCompleted = is_auth
-  const isExtractTypeSelected = !!selectedExtractType || phaseNum >= 80000
-  const isMarriageChecked = phaseNum >= 70000 || phaseNum >= 80000
-  const isSmsSignCompleted = phaseNum >= 80000
-  const isBankSignCompleted = phaseNum >= 14000
+  const isExtractTypeSelected = !!selectedExtractType || phaseNum >= 30000
+  const isMarriageChecked = phaseNum >= 70000 // 进入签约阶段说明婚姻状态已检查
+  const isSmsSignCompleted = phaseNum >= 80000 // 进入银行卡签约阶段说明手机已签约
+  const isBankSignCompleted = phaseNum >= 90000 // 进入后续阶段说明银行卡已签约
   const isSigningCompleted = isSmsSignCompleted && isBankSignCompleted
-  const isMultiChildChecked = phaseNum >= 14000
-  const isDepositChecked = phaseNum >= 14000
-  const isPropertyChecked = phaseNum >= 14000
-  const isLoanChecked = phaseNum >= 14000
+  const isMultiChildChecked = phaseNum >= 11000 // 进入缴存提取判断阶段
+  const isDepositChecked = phaseNum >= 12000 // 进入房产判断阶段
+  const isPropertyChecked = phaseNum >= 13000 // 进入贷款判断阶段
+  const isLoanChecked = phaseNum >= 14000 // 满足提取条件
   const isExtractDetailsReady = phaseNum >= 14000
   const isSubmitted = isFinished
 
@@ -86,6 +93,10 @@ export default function ExtractFlowChart({
     if (!isMarriageChecked) return "marriage"
     if (!isSmsSignCompleted) return "sms_sign"
     if (!isBankSignCompleted) return "bank_sign"
+    if (!isMultiChildChecked) return "multi_child"
+    if (!isDepositChecked) return "deposit"
+    if (!isPropertyChecked) return "property"
+    if (!isLoanChecked) return "loan"
     if (!isExtractDetailsReady) return "extract_details"
     if (!isSubmitted) return "submit"
     return "done"
