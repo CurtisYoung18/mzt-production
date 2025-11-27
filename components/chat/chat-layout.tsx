@@ -868,7 +868,8 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
       }
       
       // 检查是否需要获取公积金详情
-      if (llmResponse?.card_type === "gjj_details") {
+      const finalLlmResponse = isJsonMode ? parseLLMJsonResponse(jsonBuffer.trim()) : null
+      if (finalLlmResponse?.card_type === "gjj_details") {
         console.log("[v0] Detected gjj_details card, fetching account info...")
         try {
           const accountResponse = await fetch(`/api/account/info?userId=${user.userId}`)
