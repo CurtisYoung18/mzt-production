@@ -84,9 +84,9 @@ export default function ChatSidebar({
           isOpen ? "w-72" : "w-0"
         }`}
       >
-        <div className="w-72 h-full flex flex-col">
+        <div className="w-72 h-full flex flex-col overflow-hidden">
           {/* Header with user info and toggle button */}
-          <div className="p-4 flex items-center gap-3">
+          <div className="p-4 flex items-center gap-3 shrink-0">
             <img
               src={USER_AVATAR || "/placeholder.svg"}
               alt="用户头像"
@@ -120,8 +120,8 @@ export default function ChatSidebar({
           </div>
 
           {/* Scrollable content area */}
-          <ScrollArea className="flex-1">
-            <div className="space-y-3">
+          <ScrollArea className="flex-1 min-h-0">
+            <div className="space-y-3 pb-2">
               {/* Quick Actions Section - Shows after first message */}
               {showQuickActions && onAccountQuery && onExtraction && (
                 <div className="px-3">
@@ -253,7 +253,7 @@ export default function ChatSidebar({
           </ScrollArea>
 
           {/* Footer with logout */}
-          <div className="p-3 border-t border-sidebar-border space-y-2">
+          <div className="p-3 border-t border-sidebar-border space-y-2 shrink-0">
             <Button
               variant="outline"
               className="w-full gap-2 text-muted-foreground hover:text-destructive hover:border-destructive bg-transparent text-sm h-9"
