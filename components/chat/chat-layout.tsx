@@ -612,21 +612,50 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
         }
       }
       
+      // Parse LLM JSON response format
+      const parseLLMJsonResponse = (content: string) => {
+        if (!content) return null
+        const trimmed = content.trim()
+        // Check if it looks like JSON
+        if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+          try {
+            const parsed = JSON.parse(trimmed)
+            if ('content' in parsed) {
+              return {
+                card_type: parsed.card_type,
+                card_message: parsed.card_message,
+                content: parsed.content || ''
+              }
+            }
+          } catch {
+            // Not valid JSON
+          }
+        }
+        return null
+      }
+      
       // Throttled UI update function
-      const updateUI = (force = false) => {
+      const updateUI = (force = false, isFinal = false) => {
         const now = Date.now()
         if (!force && now - lastUpdateTime < UPDATE_INTERVAL) return
         lastUpdateTime = now
+        
+        // Only parse JSON on final update
+        const llmResponse = isFinal ? parseLLMJsonResponse(fullContent) : null
         
         setMessages((prev) =>
           prev.map((m) =>
             m.id === aiMessageId
               ? {
                   ...m,
-                  content: fullContent || "",
+                  // If LLM returned JSON, use parsed content; otherwise use raw content
+                  content: llmResponse ? llmResponse.content : (fullContent || ""),
                   thinking: thinkingContent || undefined,
                   thinkingComplete: thinkingComplete,
                   isThinking: !fullContent && !thinkingComplete, // Clear isThinking when content arrives
+                  // Add LLM card fields if present
+                  llmCardType: llmResponse?.card_type || undefined,
+                  llmCardMessage: llmResponse?.card_message || undefined,
                 }
               : m
           )
@@ -696,8 +725,8 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
                     .replace(/<\/think>/g, "")
                     .trim()
                   
-                  // Force final update
-                  updateUI(true)
+                  // Force final update with JSON parsing
+                  updateUI(true, true)
                   console.log("[v0] Stream ended")
                 } else if (event.code === 11 && event.message === "MessageInfo") {
                   // MessageInfo - log for debugging
@@ -730,8 +759,8 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
       
       fullContent = fullContent.replace(/<think>/g, "").replace(/<\/think>/g, "").trim()
       
-      // Force final update
-      updateUI(true)
+      // Force final update with JSON parsing
+      updateUI(true, true)
       
       if (!fullContent && !thinkingContent) {
         setMessages((prev) =>

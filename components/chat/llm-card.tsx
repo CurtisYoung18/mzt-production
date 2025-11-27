@@ -56,10 +56,19 @@ const cardConfig = {
   },
 }
 
+// 有效的卡片类型
+const validCardTypes = ["warning", "success", "info", "error"] as const
+type ValidCardType = typeof validCardTypes[number]
+
+function isValidCardType(type: unknown): type is ValidCardType {
+  return typeof type === "string" && validCardTypes.includes(type as ValidCardType)
+}
+
 export default function LLMCard({ type, message, className, onClose }: LLMCardProps) {
   const [isVisible, setIsVisible] = useState(true)
 
-  if (!type || !isVisible) return null
+  // 检查 type 是否有效
+  if (!type || !isVisible || !isValidCardType(type)) return null
 
   const config = cardConfig[type]
   const IconComponent = config.icon
