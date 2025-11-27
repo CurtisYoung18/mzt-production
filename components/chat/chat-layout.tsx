@@ -537,8 +537,8 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
   }
 
   // 处理业务卡片操作
-  const handleBusinessCardAction = async (cardType: string, action: string) => {
-    console.log(`[Business Card] Type: ${cardType}, Action: ${action}`)
+  const handleBusinessCardAction = async (cardType: string, action: string, extraData?: { message?: string }) => {
+    console.log(`[Business Card] Type: ${cardType}, Action: ${action}`, extraData)
     
     if (cardType === "withdrawl_auth" && action === "confirm") {
       try {
@@ -561,6 +561,40 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
 
         // 自动发送用户消息
         handleSendMessage("我已完成授权，请继续")
+      } catch (error) {
+        console.error("[Business Card] Error:", error)
+      }
+    }
+    
+    if (cardType === "sign" && action === "confirm") {
+      try {
+        // 根据消息内容判断签约类型
+        const message = extraData?.message || ""
+        const isPhoneSign = message.includes("手机") || message.includes("电话")
+        
+        // 手机签约: 80000 → 80001
+        // 银行卡签约: 90000 → 90001
+        const newPhase = isPhoneSign ? "80001" : "90001"
+        const signType = isPhoneSign ? "手机号" : "银行卡"
+        
+        const response = await fetch("/api/user/attribute", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId: user.userId,
+            attributeName: "phase",
+            value: newPhase,
+          }),
+        })
+
+        if (!response.ok) {
+          throw new Error("更新用户属性失败")
+        }
+
+        console.log(`[Business Card] User phase updated to ${newPhase}`)
+
+        // 自动发送用户消息
+        handleSendMessage(`我已完成${signType}签约，请继续`)
       } catch (error) {
         console.error("[Business Card] Error:", error)
       }

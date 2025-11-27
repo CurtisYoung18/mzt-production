@@ -13,6 +13,7 @@ import ThinkingProcess from "./thinking-process"
 import AccountDetailsCard from "./account-details-card"
 import LLMCard from "./llm-card"
 import AuthCard from "./auth-card"
+import SignCard from "./sign-card"
 
 // 业务卡片类型
 const BUSINESS_CARD_TYPES = ["withdrawl_auth", "sign", "finish"]
@@ -21,7 +22,7 @@ interface MessageCardProps {
   message: Message
   userId: string
   userInfo?: UserBasicInfo
-  onBusinessCardAction?: (cardType: string, action: string) => void
+  onBusinessCardAction?: (cardType: string, action: string, extraData?: { message?: string }) => void
 }
 
 // 解析 LLM 返回的 JSON 格式内容
@@ -243,6 +244,15 @@ export default function MessageCard({ message, userId, userInfo, onBusinessCardA
         <AuthCard
           userInfo={userInfo}
           onConfirm={() => onBusinessCardAction("withdrawl_auth", "confirm")}
+        />
+      )}
+      
+      {/* Business Card - 签约卡片 */}
+      {llmCardType === "sign" && llmCardMessage && userInfo && onBusinessCardAction && (
+        <SignCard
+          message={llmCardMessage}
+          userInfo={userInfo}
+          onConfirm={() => onBusinessCardAction("sign", "confirm", { message: llmCardMessage })}
         />
       )}
       
