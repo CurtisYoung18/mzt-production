@@ -108,6 +108,7 @@ export default function MessageCard({
 
   // Check if message has account info - render card and content together
   if (message.accountInfo) {
+    const contentToShow = parsedResponse?.content || message.content
     return (
       <div className="space-y-3">
         <AccountDetailsCard
@@ -115,14 +116,14 @@ export default function MessageCard({
           className="w-full max-w-2xl"
         />
         {/* Render AI's content summary below the card */}
-        {displayContent && (
+        {contentToShow && (
           <div className="bg-secondary/80 px-4 py-3 rounded-2xl rounded-tl-sm">
             <div className="prose prose-sm dark:prose-invert max-w-none text-foreground leading-relaxed">
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 rehypePlugins={[rehypeRaw]}
               >
-                {displayContent}
+                {contentToShow}
               </ReactMarkdown>
             </div>
           </div>
