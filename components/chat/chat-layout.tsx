@@ -1006,12 +1006,30 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
               
               // 解析总结内容
               let finalSummary = summaryContent
+              console.log("[v0] Summary - isJsonMode:", summaryIsJsonMode)
+              console.log("[v0] Summary - jsonBuffer:", summaryJsonBuffer)
+              console.log("[v0] Summary - content:", summaryContent)
+              
               if (summaryIsJsonMode && summaryJsonBuffer) {
                 const parsedSummary = parseLLMJsonResponse(summaryJsonBuffer.trim())
+                console.log("[v0] Summary - parsed:", parsedSummary)
                 if (parsedSummary?.content) {
                   finalSummary = parsedSummary.content
+                } else if (summaryJsonBuffer) {
+                  // 如果解析失败，尝试直接从 buffer 提取 content
+                  try {
+                    const directParse = JSON.parse(summaryJsonBuffer.trim())
+                    if (directParse.content) {
+                      finalSummary = directParse.content
+                      console.log("[v0] Summary - direct parse content:", finalSummary)
+                    }
+                  } catch {
+                    console.log("[v0] Summary - direct parse failed")
+                  }
                 }
               }
+              
+              console.log("[v0] Summary - final:", finalSummary)
               
               // 更新总结消息
               setMessages((prev) =>
