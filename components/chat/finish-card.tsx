@@ -308,42 +308,33 @@ export default function FinishCard({
           {stage === "verifying" && (
             <motion.div
               key="verifying"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
               transition={{ duration: 0.3 }}
               className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-lg overflow-hidden max-w-md"
             >
               <div className="p-12 text-center">
-                <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                  className="mx-auto mb-4"
-                >
-                  <Loader2 className="h-16 w-16 text-blue-500" />
-                </motion.div>
+                {/* 旋转图标容器 - 固定尺寸防止抖动 */}
+                <div className="w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                  <Loader2 className="h-16 w-16 text-blue-500 animate-spin" />
+                </div>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
                   正在核对信息
                 </h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   请稍候，正在验证您的人脸认证结果...
                 </p>
-                <div className="mt-4 flex justify-center gap-1">
-                  <motion.span
-                    animate={{ opacity: [0.3, 1, 0.3] }}
-                    transition={{ duration: 1.5, repeat: Infinity, delay: 0 }}
-                    className="w-2 h-2 bg-blue-500 rounded-full"
-                  />
-                  <motion.span
-                    animate={{ opacity: [0.3, 1, 0.3] }}
-                    transition={{ duration: 1.5, repeat: Infinity, delay: 0.2 }}
-                    className="w-2 h-2 bg-blue-500 rounded-full"
-                  />
-                  <motion.span
-                    animate={{ opacity: [0.3, 1, 0.3] }}
-                    transition={{ duration: 1.5, repeat: Infinity, delay: 0.4 }}
-                    className="w-2 h-2 bg-blue-500 rounded-full"
-                  />
+                {/* 进度条动画 */}
+                <div className="mt-4 w-48 mx-auto">
+                  <div className="h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                    <motion.div
+                      initial={{ x: "-100%" }}
+                      animate={{ x: "100%" }}
+                      transition={{ duration: 1, repeat: Infinity, ease: "easeInOut" }}
+                      className="h-full w-1/2 bg-gradient-to-r from-transparent via-blue-500 to-transparent rounded-full"
+                    />
+                  </div>
                 </div>
               </div>
             </motion.div>
