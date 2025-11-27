@@ -957,8 +957,12 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 conversationId,
-                message: summaryPrompt,
-                userId: user.userId,
+                messages: [
+                  {
+                    role: "user",
+                    content: [{ type: "text", text: summaryPrompt }],
+                  },
+                ],
               }),
             })
             
