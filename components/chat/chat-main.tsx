@@ -228,6 +228,7 @@ export default function ChatMain({
                       onViewRecords={onViewRecords}
                       onContinueChat={onContinueChat}
                       onEndChat={onEndChat}
+                      onSendMessage={(content) => onSendMessage(content)}
                     />
                     {message.content && (
                       <div className="flex items-center gap-1 ml-1 opacity-0 hover:opacity-100 transition-opacity">

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useMemo } from "react"
+import { motion } from "framer-motion"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import rehypeRaw from "rehype-raw"
@@ -27,6 +28,7 @@ interface MessageCardProps {
   onViewRecords?: () => void
   onContinueChat?: () => void
   onEndChat?: (rating: number) => void
+  onSendMessage?: (content: string) => void
 }
 
 // 解析 LLM 返回的 JSON 格式内容
@@ -60,7 +62,8 @@ export default function MessageCard({
   onBusinessCardAction,
   onViewRecords,
   onContinueChat,
-  onEndChat
+  onEndChat,
+  onSendMessage
 }: MessageCardProps) {
   const [expanded, setExpanded] = useState(true)
   
@@ -253,11 +256,45 @@ export default function MessageCard({
       
       {/* Business Card - 授权卡片 */}
       {/* Business Card - 授权卡片 (card_type: "auth") */}
-      {llmCardType === "auth" && userInfo && onBusinessCardAction && (
+      {llmCardType === "auth" && userInfo && onBusinessCardAction && !message.authCompleted && (
         <AuthCard
           userInfo={userInfo}
           onConfirm={() => onBusinessCardAction("auth", "confirm")}
         />
+      )}
+      
+      {/* 授权完成后显示可用的提取类型 */}
+      {message.authCompleted && message.permitExtractTypes && message.permitExtractTypes.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 border border-green-200 dark:border-green-800 rounded-2xl p-4 max-w-md"
+        >
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center">
+              <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <span className="text-sm font-medium text-green-700 dark:text-green-300">授权成功！您可办理以下提取业务：</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {message.permitExtractTypes.map((type, index) => (
+              <motion.button
+                key={type}
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: index * 0.1 }}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => onSendMessage?.(`我要办理${type}提取`)}
+                className="px-4 py-2 bg-white dark:bg-gray-800 border border-green-300 dark:border-green-700 rounded-full text-sm font-medium text-green-700 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-900/50 hover:border-green-400 transition-all shadow-sm"
+              >
+                {type}提取
+              </motion.button>
+            ))}
+          </div>
+        </motion.div>
       )}
       
       {/* Business Card - 签约卡片 */}

@@ -294,8 +294,26 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
           console.warn("[Business Card] API returned non-OK status, but continuing flow")
         }
 
-        // 自动发送用户消息
-        handleSendMessage("我已完成授权，请继续")
+        // 获取用户可用的提取类型
+        const attrResponse = await fetch(`/api/user/attribute?userId=${user.userId}`)
+        const attrData = await attrResponse.json()
+        const permitExtractTypes = attrData?.data?.permit_extract_types || []
+        
+        console.log(`[Business Card] User permit_extract_types:`, permitExtractTypes)
+
+        // 找到包含 auth 卡片的消息，更新它显示可用的提取类型
+        setMessages((prev) => {
+          // 找到最后一条包含 auth 卡片的消息
+          const lastAuthMessageIndex = [...prev].reverse().findIndex(m => m.llmCardType === "auth")
+          if (lastAuthMessageIndex === -1) return prev
+          
+          const actualIndex = prev.length - 1 - lastAuthMessageIndex
+          return prev.map((m, i) =>
+            i === actualIndex
+              ? { ...m, authCompleted: true, permitExtractTypes }
+              : m
+          )
+        })
       } catch (error) {
         console.error("[Business Card] Error:", error)
       }

@@ -34,6 +34,9 @@ export interface Message {
   // LLM 结构化卡片
   llmCardType?: LLMCardType
   llmCardMessage?: string
+  // 授权完成后显示可用的提取类型
+  authCompleted?: boolean
+  permitExtractTypes?: string[]
 }
 
 export interface AccountInfo {
