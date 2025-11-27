@@ -66,23 +66,49 @@ export default function ExtractFlowChart({
   const phaseNum = parseInt(phase) || 10000
 
   // 判断各步骤的完成状态
-  // 流程阶段参考：
-  // 30000: 未检验婚姻 -> 30001: 未婚, 30002: 已婚
-  // 70000: 未手机签约 -> 70001: 完成手机签约
-  // 80000: 未银行卡签约 -> 80001: 完成银行卡签约
-  // 90000-13001: 中间校验状态
-  // 14000: 满足提取条件
+  // 流程阶段参考（注意：编号不是线性递增的）：
+  // 10000: 未开始 -> 20000: 提取前校验 -> 30000: 婚姻检验
+  // 70000: 手机签约 -> 80000: 银行卡签约 -> 90000: 多孩家庭
+  // 11000: 缴存提取 -> 12000: 房产 -> 13000: 贷款 -> 14000: 满足条件
+  // 注意：11000-14000 的编号比 70000-90000 小，需要特殊处理
+  
+  // 定义 phase 到流程顺序的映射
+  const getPhaseOrder = (p: number): number => {
+    if (p < 20000) return 0  // 未开始
+    if (p < 30000) return 1  // 提取前校验
+    if (p < 40000) return 2  // 婚姻检验 (30000-39999)
+    if (p < 60000) return 3  // 配偶相关 (40000-59999)
+    if (p < 70000) return 4  // 账户状态 (60000-69999)
+    if (p < 80000) return 5  // 手机签约 (70000-79999)
+    if (p < 90000) return 6  // 银行卡签约 (80000-89999)
+    if (p >= 90000 && p < 11000) return 7  // 多孩家庭 (90000-10999) - 不可能的范围
+    // 注意：这里有个编号断层，90000 之后是 11000
+    if (p >= 90000) return 7  // 多孩家庭检查完成
+    if (p >= 11000 && p < 12000) return 8  // 缴存提取 (11000-11999)
+    if (p >= 12000 && p < 13000) return 9  // 房产 (12000-12999)
+    if (p >= 13000 && p < 14000) return 10 // 贷款 (13000-13999)
+    if (p >= 14000 && p < 15000) return 11 // 满足条件 (14000-14999)
+    return 12 // 完成
+  }
+  
+  // 特殊处理：判断是否进入了后续校验阶段（11000-14999）
+  const isInLaterPhase = (p: number): boolean => {
+    return (p >= 11000 && p < 15000) || p >= 90000
+  }
+  
+  const phaseOrder = getPhaseOrder(phaseNum)
+  const inLaterPhase = isInLaterPhase(phaseNum)
   
   const isAuthCompleted = is_auth
-  const isExtractTypeSelected = !!selectedExtractType || phaseNum >= 30000
-  const isMarriageChecked = phaseNum >= 70000 // 进入签约阶段说明婚姻状态已检查
-  const isSmsSignCompleted = phaseNum >= 80000 // 进入银行卡签约阶段说明手机已签约
-  const isBankSignCompleted = phaseNum >= 90000 // 进入后续阶段说明银行卡已签约
+  const isExtractTypeSelected = !!selectedExtractType || phaseOrder >= 2
+  const isMarriageChecked = phaseOrder >= 5 // 进入签约阶段说明婚姻状态已检查
+  const isSmsSignCompleted = phaseOrder >= 6 // 进入银行卡签约阶段说明手机已签约
+  const isBankSignCompleted = inLaterPhase || phaseNum >= 90000 // 进入后续阶段说明银行卡已签约
   const isSigningCompleted = isSmsSignCompleted && isBankSignCompleted
-  const isMultiChildChecked = phaseNum >= 11000 // 进入缴存提取判断阶段
-  const isDepositChecked = phaseNum >= 12000 // 进入房产判断阶段
-  const isPropertyChecked = phaseNum >= 13000 // 进入贷款判断阶段
-  const isLoanChecked = phaseNum >= 14000 // 满足提取条件
+  const isMultiChildChecked = inLaterPhase && phaseNum >= 11000 // 多孩检查完成
+  const isDepositChecked = inLaterPhase && phaseNum >= 12000 // 缴存检查完成
+  const isPropertyChecked = inLaterPhase && phaseNum >= 13000 // 房产检查完成
+  const isLoanChecked = inLaterPhase && phaseNum >= 14000 // 贷款检查完成
   const isExtractDetailsReady = phaseNum >= 14000
   const isSubmitted = isFinished
 
@@ -93,10 +119,13 @@ export default function ExtractFlowChart({
     if (!isMarriageChecked) return "marriage"
     if (!isSmsSignCompleted) return "sms_sign"
     if (!isBankSignCompleted) return "bank_sign"
-    if (!isMultiChildChecked) return "multi_child"
-    if (!isDepositChecked) return "deposit"
-    if (!isPropertyChecked) return "property"
-    if (!isLoanChecked) return "loan"
+    // 只有进入后续校验阶段才显示这些步骤的激活状态
+    if (inLaterPhase) {
+      if (!isMultiChildChecked) return "multi_child"
+      if (!isDepositChecked) return "deposit"
+      if (!isPropertyChecked) return "property"
+      if (!isLoanChecked) return "loan"
+    }
     if (!isExtractDetailsReady) return "extract_details"
     if (!isSubmitted) return "submit"
     return "done"
