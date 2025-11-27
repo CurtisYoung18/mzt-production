@@ -321,6 +321,7 @@ export default function MessageCard({
       {llmCardType === "finish" && llmCardMessage && (
         <FinishCard
           message={llmCardMessage}
+          accountInfo={message.accountInfo}
           onViewRecords={onViewRecords}
           onContinueChat={onContinueChat}
           onEndChat={onEndChat}
