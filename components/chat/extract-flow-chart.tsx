@@ -196,7 +196,7 @@ export default function ExtractFlowChart({
     },
     {
       id: "extract_details",
-      label: "租房提取详情",
+      label: "提取详情",
       icon: <FileText className="h-4 w-4" />,
       isActive: currentStep === "extract_details",
       isCompleted: isExtractDetailsReady,
@@ -372,7 +372,7 @@ export default function ExtractFlowChart({
         <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shrink-0">
           <FileText className="h-3.5 w-3.5 text-white" />
         </div>
-        <span className="text-sm font-semibold text-gray-900 dark:text-gray-100 flex-1 text-left">租房提取流程</span>
+        <span className="text-sm font-semibold text-gray-900 dark:text-gray-100 flex-1 text-left">公积金提取流程</span>
         
         {/* 迷你进度指示 */}
         <div className="flex items-center gap-2">
