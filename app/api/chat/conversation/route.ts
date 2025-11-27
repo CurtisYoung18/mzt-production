@@ -7,7 +7,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { userId } = body
 
-    console.log("[v0] API route - Creating conversation for userId:", userId)
+    console.log("[会话创建] 开始创建会话 - 用户:", userId)
 
     if (!userId) {
       return NextResponse.json({ error: "userId is required" }, { status: 400 })
@@ -23,17 +23,19 @@ export async function POST(request: NextRequest) {
 
     // Create conversation
     const conversationId = await createConversation(userId)
-    console.log("[v0] API route - Conversation created:", conversationId)
+    console.log("[会话创建] ✅ 会话ID:", conversationId)
 
     // Fetch user attributes from database and sync to GPTBots
     try {
-      console.log("[v0] Fetching user attributes for userId:", userId)
+      console.log("[属性同步] 获取用户属性 - 用户:", userId)
       const userAttributes = await getUserAttributes(userId)
       
       if (userAttributes) {
-        console.log("[v0] User attributes found:", userAttributes)
-        console.log("[v0] User phase:", userAttributes.phase)
-        console.log("[v0] User is_auth:", userAttributes.is_auth)
+        console.log("[属性同步] 用户属性:", {
+          phase: userAttributes.phase,
+          is_auth: userAttributes.is_auth,
+          city: userAttributes.city
+        })
         
         // Build property values array for GPTBots
         const propertyValues: PropertyValue[] = [
@@ -44,18 +46,18 @@ export async function POST(request: NextRequest) {
 
         // Sync user attributes to GPTBots
         const syncResult = await updateUserProperties(userId, propertyValues)
-        console.log("[v0] User properties sync result:", syncResult)
+        console.log("[属性同步] 同步到GPTBots:", syncResult ? "✅ 成功" : "❌ 失败")
       } else {
-        console.log("[v0] No user attributes found for userId:", userId)
+        console.log("[属性同步] ⚠️ 未找到用户属性:", userId)
       }
     } catch (attrError) {
       // Don't fail the whole request if attribute sync fails
-      console.error("[v0] Failed to sync user attributes:", attrError)
+      console.error("[属性同步] ❌ 同步失败:", attrError)
     }
 
     return NextResponse.json({ conversationId })
   } catch (error) {
-    console.error("[v0] API route - Error creating conversation:", error)
+    console.error("[会话创建] ❌ 创建失败:", error)
     const errorMessage = error instanceof Error ? error.message : "Failed to create conversation"
     return NextResponse.json(
       { error: errorMessage, stack: error instanceof Error ? error.stack : undefined },

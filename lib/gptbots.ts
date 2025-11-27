@@ -230,8 +230,8 @@ export interface StreamEvent {
 // Create a new conversation
 export async function createConversation(userId: string): Promise<string> {
   const url = `${GPTBOTS_BASE_URL}/v1/conversation`
-  console.log("[v0] Creating conversation for user:", userId)
-  console.log("[v0] API URL:", url)
+  console.log("[GPTBots 会话] 创建会话 - 用户:", userId)
+  console.log("[GPTBots 会话] API 地址:", url)
 
   try {
     const response = await fetchWithSSLBypass(url, {
@@ -243,19 +243,19 @@ export async function createConversation(userId: string): Promise<string> {
       body: JSON.stringify({ user_id: userId }),
     })
 
-    console.log("[v0] Response status:", response.status)
+    console.log("[GPTBots 会话] 响应状态:", response.status)
     const responseText = await response.text()
-    console.log("[v0] Response body:", responseText.substring(0, 500))
+    console.log("[GPTBots 会话] 响应内容:", responseText.substring(0, 500))
 
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${responseText}`)
     }
 
     const data: CreateConversationResponse = JSON.parse(responseText)
-    console.log("[v0] Conversation created:", data.conversation_id)
+    console.log("[GPTBots 会话] ✅ 会话已创建:", data.conversation_id)
     return data.conversation_id
   } catch (error) {
-    console.error("[v0] Create conversation error:", error)
+    console.error("[GPTBots 会话] ❌ 创建会话失败:", error)
     throw error
   }
 }
@@ -271,8 +271,8 @@ export async function updateUserProperties(
   propertyValues: PropertyValue[]
 ): Promise<boolean> {
   const url = `${GPTBOTS_BASE_URL}/v1/property/update`
-  console.log("[v0] Updating user properties for:", userId)
-  console.log("[v0] Properties:", JSON.stringify(propertyValues))
+  console.log("[GPTBots 属性] 更新用户属性 - 用户:", userId)
+  console.log("[GPTBots 属性] 属性值:", JSON.stringify(propertyValues))
 
   try {
     const response = await fetchWithSSLBypass(url, {
@@ -289,14 +289,14 @@ export async function updateUserProperties(
 
     if (!response.ok) {
       const errorText = await response.text()
-      console.error("[v0] Update properties failed:", response.status, errorText)
+      console.error("[GPTBots 属性] ❌ 更新失败:", response.status, errorText)
       return false
     }
 
-    console.log("[v0] User properties updated successfully")
+    console.log("[GPTBots 属性] ✅ 用户属性已更新")
     return true
   } catch (error) {
-    console.error("[v0] Update properties error:", error)
+    console.error("[GPTBots 属性] ❌ 更新出错:", error)
     return false
   }
 }
@@ -308,7 +308,7 @@ export async function sendMessageStreaming(
   config?: ConversationConfig,
 ): Promise<ReadableStream<Uint8Array>> {
   const url = `${GPTBOTS_BASE_URL}/v2/conversation/message`
-  console.log("[v0] Sending streaming message to conversation:", conversationId)
+  console.log("[GPTBots 消息] 发送消息 - 会话ID:", conversationId)
 
   const stream = await fetchStreamWithSSLBypass(url, {
     method: "POST",
@@ -324,7 +324,7 @@ export async function sendMessageStreaming(
     }),
   })
 
-  console.log("[v0] Stream created successfully")
+  console.log("[GPTBots 消息] ✅ 流式响应已创建")
   return stream
 }
 

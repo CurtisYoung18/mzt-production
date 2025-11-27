@@ -66,7 +66,7 @@ export default function MessageCard({
   onSendMessage
 }: MessageCardProps) {
   const [expanded, setExpanded] = useState(true)
-  
+
   // 解析消息内容，检查是否为 LLM 结构化响应
   const parsedResponse = useMemo(() => {
     // 优先使用消息中已解析的字段
@@ -111,10 +111,10 @@ export default function MessageCard({
     const contentToShow = parsedResponse?.content || message.content
     return (
       <div className="space-y-3">
-        <AccountDetailsCard
-          accountInfo={message.accountInfo}
+      <AccountDetailsCard
+        accountInfo={message.accountInfo}
           className="w-full max-w-2xl"
-        />
+      />
         {/* Render AI's content summary below the card */}
         {contentToShow && (
           <div className="bg-secondary/80 px-4 py-3 rounded-2xl rounded-tl-sm">

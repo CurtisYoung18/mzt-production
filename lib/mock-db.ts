@@ -409,10 +409,25 @@ export function resetMockUserAttributes(userId: string): boolean {
   const initialAttr = INITIAL_USER_ATTRIBUTES[userId]
   
   if (userAttr && initialAttr) {
+    console.log(`[Mock DB] ========== RESET START ==========`)
+    console.log(`[Mock DB] User: ${userId}`)
+    console.log(`[Mock DB] BEFORE reset:`)
+    console.log(`[Mock DB]   - phase: ${userAttr.phase}`)
+    console.log(`[Mock DB]   - is_auth: ${userAttr.is_auth}`)
+    console.log(`[Mock DB]   - sms_signed: ${userAttr.sms_signed}`)
+    console.log(`[Mock DB]   - bank_card_signed: ${userAttr.bank_card_signed}`)
+    
     Object.assign(userAttr, { ...initialAttr, user_id: userId })
-    console.log(`[Mock DB] Reset user attributes for ${userId} to initial state`)
+    
+    console.log(`[Mock DB] AFTER reset:`)
+    console.log(`[Mock DB]   - phase: ${userAttr.phase}`)
+    console.log(`[Mock DB]   - is_auth: ${userAttr.is_auth}`)
+    console.log(`[Mock DB]   - sms_signed: ${userAttr.sms_signed}`)
+    console.log(`[Mock DB]   - bank_card_signed: ${userAttr.bank_card_signed}`)
+    console.log(`[Mock DB] ========== RESET COMPLETE ==========`)
     return true
   }
+  console.log(`[Mock DB] ❌ Reset failed - user ${userId} not found or no initial config`)
   return false
 }
 

@@ -15,13 +15,16 @@ export async function POST(request: NextRequest) {
     }
 
     if (USE_MOCK_DB) {
+      console.log(`[Reset API] Resetting user attributes for: ${userId}`)
       const success = resetMockUserAttributes(userId)
       if (success) {
+        console.log(`[Reset API] ✅ Successfully reset user ${userId} to initial state`)
         return NextResponse.json({ 
           success: true, 
           message: "用户属性已重置到初始状态" 
         })
       }
+      console.log(`[Reset API] ❌ User not found: ${userId}`)
       return NextResponse.json({ error: "用户不存在" }, { status: 404 })
     }
 

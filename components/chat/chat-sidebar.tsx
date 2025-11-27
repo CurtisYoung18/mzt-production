@@ -216,38 +216,38 @@ export default function ChatSidebar({
                 </div>
               )}
 
-              {/* Recent Sessions Header */}
+          {/* Recent Sessions Header */}
               <div className="px-3 py-2 flex items-center gap-2 text-sm text-muted-foreground">
-                <Clock className="h-4 w-4" />
-                <span>最近导办记录</span>
-              </div>
+              <Clock className="h-4 w-4" />
+              <span>最近导办记录</span>
+          </div>
 
-              {/* Sessions List */}
+          {/* Sessions List */}
               <div className="px-3 space-y-1">
-                {sessions.map((session) => (
-                  <div
-                    key={session.id}
-                    className={`group flex items-center gap-2 p-2.5 rounded-lg cursor-pointer transition-colors ${
-                      activeSessionId === session.id
-                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                        : "hover:bg-sidebar-accent/50"
-                    }`}
-                    onClick={() => onSelectSession(session.id)}
+              {sessions.map((session) => (
+                <div
+                  key={session.id}
+                  className={`group flex items-center gap-2 p-2.5 rounded-lg cursor-pointer transition-colors ${
+                    activeSessionId === session.id
+                      ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                      : "hover:bg-sidebar-accent/50"
+                  }`}
+                  onClick={() => onSelectSession(session.id)}
+                >
+                  <span className="flex-1 truncate text-sm">{session.title}</span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onDeleteSession(session.id)
+                    }}
                   >
-                    <span className="flex-1 truncate text-sm">{session.title}</span>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        onDeleteSession(session.id)
-                      }}
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </div>
-                ))}
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </div>
+              ))}
               </div>
             </div>
           </ScrollArea>
@@ -269,13 +269,13 @@ export default function ChatSidebar({
 
       {/* Expand button - only visible when sidebar is closed */}
       {!isOpen && (
-        <button
-          onClick={onToggle}
+      <button
+        onClick={onToggle}
           className="absolute top-1/2 -translate-y-1/2 left-0 w-6 h-16 bg-sidebar/95 backdrop-blur-sm border border-sidebar-border border-l-0 rounded-r-lg flex items-center justify-center hover:bg-sidebar-accent transition-all duration-200 shadow-md z-10"
           title="展开侧边栏"
         >
           <ChevronRight className="h-4 w-4 text-muted-foreground" />
-        </button>
+      </button>
       )}
     </div>
   )

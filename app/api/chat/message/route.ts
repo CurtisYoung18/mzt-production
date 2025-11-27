@@ -5,8 +5,8 @@ export async function POST(request: NextRequest) {
   try {
     const { conversationId, messages } = await request.json()
 
-    console.log("[v0] Message API - conversationId:", conversationId)
-    console.log("[v0] Message API - messages count:", messages?.length)
+    console.log("[消息发送] 会话ID:", conversationId)
+    console.log("[消息发送] 消息数量:", messages?.length)
 
     if (!conversationId || !messages) {
       return new Response(JSON.stringify({ error: "Missing required fields" }), {
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
           while (true) {
             const { done, value } = await reader.read()
             if (done) {
-              console.log("[v0] Stream completed")
+              console.log("[消息发送] ✅ 流式响应完成")
               break
             }
 
@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
                   }
                 } catch (error) {
                   // Not valid JSON, skip
-                  console.log("[v0] Skipping non-JSON line:", line.substring(0, 50))
+                  console.log("[消息发送] 跳过非JSON行:", line.substring(0, 50))
                 }
               }
             }
@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
             }
           }
         } catch (error) {
-          console.error("[v0] Stream error:", error)
+          console.error("[消息发送] ❌ 流式响应错误:", error)
           controller.error(error)
         } finally {
           controller.close()
@@ -125,7 +125,7 @@ export async function POST(request: NextRequest) {
       },
     })
   } catch (error) {
-    console.error("[v0] Error in chat message:", error)
+    console.error("[消息发送] ❌ 发送失败:", error)
     return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Internal server error" }), {
       status: 500,
       headers: { "Content-Type": "application/json" },

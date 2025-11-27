@@ -218,26 +218,32 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
 
   // 获取用户属性（用于流程图）
   const fetchUserAttributes = useCallback(async () => {
+    console.log("[Flow] ========== FETCHING USER ATTRIBUTES ==========")
+    console.log("[Flow] Fetching for userId:", user.userId)
     try {
       const response = await fetch(`/api/user/attribute?userId=${user.userId}`)
+      console.log("[Flow] Response status:", response.status)
       if (response.ok) {
         const data = await response.json()
+        console.log("[Flow] Response data:", JSON.stringify(data, null, 2))
         if (data.data) {
-          setFlowUserAttributes({
+          const newAttrs = {
             is_auth: data.data.is_auth ?? false,
             is_married: data.data.is_married ?? false,
             permit_extract_types: data.data.permit_extract_types ?? [],
             phase: data.data.phase ?? "1000"
-          })
-          console.log("[Flow] User attributes updated:", {
-            is_auth: data.data.is_auth,
-            phase: data.data.phase
-          })
+          }
+          console.log("[Flow] Setting flow attributes:", newAttrs)
+          setFlowUserAttributes(newAttrs)
+          console.log("[Flow] ✅ User attributes updated successfully")
         }
+      } else {
+        console.log("[Flow] ❌ Response not ok:", response.statusText)
       }
     } catch (error) {
-      console.error("[Flow] Failed to fetch user attributes:", error)
+      console.error("[Flow] ❌ Failed to fetch user attributes:", error)
     }
+    console.log("[Flow] ========== FETCH COMPLETE ==========")
   }, [user.userId])
 
   // 初始化时获取用户属性
@@ -253,6 +259,9 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
   }, [messages.length, fetchUserAttributes])
 
   const handleNewSession = async () => {
+    console.log("[NewSession] ========== STARTING NEW SESSION ==========")
+    console.log("[NewSession] User:", user.userId)
+    
     const newSession: ChatSession = {
       id: Date.now().toString(),
       title: "新会话",
@@ -268,21 +277,29 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
     setIsFlowFinished(false) // 重置完成状态
     
     // 重置用户 mock 数据到初始状态（用于演示）
+    console.log("[NewSession] Step 1: Calling reset API...")
     try {
       const resetResponse = await fetch("/api/user/reset", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: user.userId }),
       })
+      const resetData = await resetResponse.json()
+      console.log("[NewSession] Reset API response:", resetData)
       if (resetResponse.ok) {
-        console.log("[v0] User attributes reset successfully")
+        console.log("[NewSession] ✅ Reset API successful")
+      } else {
+        console.log("[NewSession] ❌ Reset API failed:", resetResponse.status)
       }
     } catch (error) {
-      console.error("[v0] Failed to reset user attributes:", error)
+      console.error("[NewSession] ❌ Failed to reset user attributes:", error)
     }
     
     // 等待一下确保数据更新完成，然后重新获取用户属性
+    console.log("[NewSession] Step 2: Fetching updated user attributes...")
     await fetchUserAttributes()
+    
+    console.log("[NewSession] Step 3: Setting welcome message")
     setMessages([
       {
         id: "welcome",
@@ -292,6 +309,7 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
         timestamp: new Date(),
       },
     ])
+    console.log("[NewSession] ========== NEW SESSION COMPLETE ==========")
   }
 
   const handleDeleteSession = (id: string) => {
@@ -315,13 +333,13 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
     phone: user.phone,
     idType: "二代身份证",
     idNumber: user.idCard,
-  }
+    }
 
   // 处理业务卡片操作
   const handleBusinessCardAction = async (cardType: string, action: string, extraData?: { message?: string }) => {
     
     if (cardType === "auth" && action === "confirm") {
-      try {
+    try {
         // 更新用户 is_auth 为 true（完成授权）
         
         // 1. 更新本地 mock 数据库
@@ -334,18 +352,18 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
             value: true,
           }),
         })
-        
+
         // 2. 同步更新 GPTBots 用户属性
         const gptbotsResponse = await fetch("/api/user/gptbots-attribute", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
             userId: user.userId,
             attributeName: "is_auth",
             value: true,
-          }),
-        })
-        
+        }),
+      })
+
 
         const responseText = await response.text()
         let responseData = {}
@@ -413,7 +431,7 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
     
     // 银行卡签约完成
     if (cardType === "bank_sign" && action === "confirm") {
-      try {
+              try {
         // 银行卡签约完成: 1018 → 1019 (API 会自动跳转到 1029)
         await fetch("/api/user/attribute", {
           method: "PUT",
@@ -430,7 +448,7 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
         
         // 自动发送用户消息
         handleSendMessage("我已完成银行卡签约，请继续")
-      } catch (error) {
+    } catch (error) {
         console.error("[Business Card] bank_sign error:", error)
       }
     }
@@ -809,7 +827,7 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
                   // Cost information - log for debugging
                 } else if (event.code >= 20000 || event.code >= 40000) {
                   // Error codes from API
-                  console.error("[v0] API Error:", event.code, event.message)
+                  console.error("[AI响应] ❌ API错误:", event.code, event.message)
                   fullContent = "抱歉，处理您的请求时出现了问题，请稍后再试。"
                   updateUI(true)
                 }
@@ -872,7 +890,7 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
             )
           }
         } catch (fetchError) {
-          console.error("[v0] Failed to fetch account info for gjj_details:", fetchError)
+          console.error("[公积金详情] ❌ 获取账户信息失败:", fetchError)
         }
       }
     } catch (error) {

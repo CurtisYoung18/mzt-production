@@ -21,33 +21,33 @@ export async function GET(request: Request) {
         return String(date)
       }
 
-      return NextResponse.json({
-        success: true,
-        data: {
-          personalAccount: row.personal_account,
+        return NextResponse.json({
+          success: true,
+          data: {
+            personalAccount: row.personal_account,
           openDate: formatDate(row.open_date),
-          paidUntil: row.paid_until,
-          idType: row.id_type,
-          idNumber: row.id_number,
-          residence: row.residence,
-          maritalStatus: row.marital_status,
-          phone: row.phone,
-          bankName: row.bank_name,
-          bankAccount: row.bank_account,
-          accountType: row.account_type,
-          accountStatus: row.account_status,
+            paidUntil: row.paid_until,
+            idType: row.id_type,
+            idNumber: row.id_number,
+            residence: row.residence,
+            maritalStatus: row.marital_status,
+            phone: row.phone,
+            bankName: row.bank_name,
+            bankAccount: row.bank_account,
+            accountType: row.account_type,
+            accountStatus: row.account_status,
           sealDate: formatDate(row.seal_date),
-          depositBase: Number(row.deposit_base),
-          personalRate: row.personal_rate,
-          personalAmount: Number(row.personal_amount),
-          companyRate: row.company_rate,
-          companyAmount: Number(row.company_amount),
-          companyName: row.company_name,
-          companyAccount: row.company_account,
-          totalBalance: Number(row.total_balance),
-        },
-      })
-    }
+            depositBase: Number(row.deposit_base),
+            personalRate: row.personal_rate,
+            personalAmount: Number(row.personal_amount),
+            companyRate: row.company_rate,
+            companyAmount: Number(row.company_amount),
+            companyName: row.company_name,
+            companyAccount: row.company_account,
+            totalBalance: Number(row.total_balance),
+          },
+        })
+      }
 
     return NextResponse.json({ error: "未找到账户信息" }, { status: 404 })
   } catch (error) {
