@@ -227,7 +227,11 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
             is_auth: data.data.is_auth ?? false,
             is_married: data.data.is_married ?? false,
             permit_extract_types: data.data.permit_extract_types ?? [],
-            phase: data.data.phase ?? "10000"
+            phase: data.data.phase ?? "1000"
+          })
+          console.log("[Flow] User attributes updated:", {
+            is_auth: data.data.is_auth,
+            phase: data.data.phase
           })
         }
       }
