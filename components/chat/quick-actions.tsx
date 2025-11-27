@@ -24,7 +24,7 @@ export default function QuickActions({ onAccountQuery, onExtraction, className }
   const [showExtractionOptions, setShowExtractionOptions] = useState(false)
 
   return (
-    <div className={cn("w-full max-w-2xl mx-auto", className)}>
+    <div className={cn("w-full max-w-2xl", className)}>
       {/* Main Card */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}

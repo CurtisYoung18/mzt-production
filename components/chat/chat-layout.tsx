@@ -95,27 +95,20 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
 
   // Function to generate session title using AI
   const generateSessionTitle = useCallback(async (messageList: Message[], sessionId: string) => {
-    // Filter messages that have actual content for conversation history
-    const validMessages = messageList.filter(
+    // Filter only user messages with actual content
+    const userMessages = messageList.filter(
       (m) => m.id !== "welcome" && 
-             !m.isThinking && 
-             !m.isQuerying &&
-             (m.content?.trim() || m.accountInfo)
+             m.role === "user" &&
+             m.content?.trim()
     )
 
-    // Build conversation history string
-    // For messages with accountInfo but no content, create a summary
-    const conversationHistory = validMessages
-      .slice(0, 6) // Take first 3 rounds (6 messages)
-      .map((m) => {
-        if (m.accountInfo && !m.content?.trim()) {
-          return `${m.role}: [显示了用户的公积金账户信息卡片]`
-        }
-        return `${m.role}: ${m.content}`
-      })
+    // Build conversation history string - only user messages
+    const conversationHistory = userMessages
+      .slice(0, 3) // Take first 3 user messages
+      .map((m) => m.content)
       .join("\n\n")
 
-    console.log("[Title] Generating title with conversation history:", conversationHistory.substring(0, 200))
+    console.log("[Title] Generating title with user messages:", conversationHistory.substring(0, 200))
 
     try {
       const response = await fetch("/api/chat/title", {
