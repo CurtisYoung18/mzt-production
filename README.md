@@ -1,30 +1,70 @@
-# Minzheng tong demo
+# 公积金智能助手演示项目
 
-*Automatically synced with your [v0.app](https://v0.app) deployments*
+基于 GPTBots 的公积金业务办理智能助手 Demo。
 
-[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com/curtis-projects-141d2f03/v0-minzheng-tong-demo)
-[![Built with v0](https://img.shields.io/badge/Built%20with-v0.app-black?style=for-the-badge)](https://v0.app/chat/rUIUNT8pCcU)
+## 技术栈
 
-## Overview
+- Next.js 16 (Turbopack)
+- React 19
+- TypeScript
+- Tailwind CSS
+- shadcn/ui
+- Framer Motion
 
-This repository will stay in sync with your deployed chats on [v0.app](https://v0.app).
-Any changes you make to your deployed app will be automatically pushed to this repository from [v0.app](https://v0.app).
+## 功能特性
 
-## Deployment
+- 多轮对话，支持流式响应
+- 用户属性同步至 GPTBots
+- 业务流程卡片交互（授权、签约、提取）
+- 侧边栏流程图实时状态展示
+- 本地 Mock 数据库，无需外部数据库依赖
 
-Your project is live at:
+## 环境配置
 
-**[https://vercel.com/curtis-projects-141d2f03/v0-minzheng-tong-demo](https://vercel.com/curtis-projects-141d2f03/v0-minzheng-tong-demo)**
+创建 `.env.local` 文件：
 
-## Build your app
+```
+GPTBOTS_API_KEY=your_api_key
+GPTBOTS_BASE_URL=https://your-gptbots-endpoint
+USE_MOCK_DB=true
+```
 
-Continue building your app on:
+## 本地运行
 
-**[https://v0.app/chat/rUIUNT8pCcU](https://v0.app/chat/rUIUNT8pCcU)**
+```bash
+npm install
+npm run dev
+```
 
-## How It Works
+访问 http://localhost:3000
 
-1. Create and modify your project using [v0.app](https://v0.app)
-2. Deploy your chats from the v0 interface
-3. Changes are automatically pushed to this repository
-4. Vercel deploys the latest version from this repository
+## 测试账号
+
+| 用户 | 账号 | 密码 | 初始阶段 |
+|------|------|------|----------|
+| 张三 | 13800138001 | admin123 | 未开始 (1000) |
+| 李四 | 13800138002 | admin123 | 手机签约 (1015) |
+| 王五 | 13800138003 | admin123 | 银行卡签约 (1018) |
+| 赵六 | 13800138004 | admin123 | 满足提取 (1029) |
+
+## 目录结构
+
+```
+app/                  # Next.js App Router
+  api/                # API 路由
+    chat/             # 对话相关 API
+    user/             # 用户属性 API
+    account/          # 账户信息 API
+components/chat/      # 聊天组件
+  chat-layout.tsx     # 主布局
+  chat-main.tsx       # 聊天主界面
+  chat-sidebar.tsx    # 侧边栏
+  message-card.tsx    # 消息卡片
+  auth-card.tsx       # 授权卡片
+  sign-card.tsx       # 签约卡片
+  finish-card.tsx     # 完成卡片
+lib/
+  gptbots.ts          # GPTBots API 客户端
+  mock-db.ts          # 本地模拟数据库
+doc/                  # 业务文档
+```
