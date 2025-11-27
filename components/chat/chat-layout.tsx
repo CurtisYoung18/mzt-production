@@ -601,6 +601,26 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
     }
   }
 
+  // 查看提取记录
+  const handleViewRecords = () => {
+    console.log("[Finish Card] View records clicked")
+    // TODO: 跳转到提取记录页面
+    window.open("/records", "_blank")
+  }
+
+  // 继续对话
+  const handleContinueChat = () => {
+    console.log("[Finish Card] Continue chat clicked")
+    // 不做任何操作，用户可以继续输入
+  }
+
+  // 结束对话并评分
+  const handleEndChat = (rating: number) => {
+    console.log("[Finish Card] End chat with rating:", rating)
+    // TODO: 发送评分到后端
+    // 可以在这里添加保存评分的 API 调用
+  }
+
   const handleSendMessage = async (content: string, attachments?: File[]) => {
     const userMessageId = Date.now().toString()
     const aiMessageId = (Date.now() + 1).toString()
@@ -1042,6 +1062,9 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
         connectionError={connectionError}
         showQuickActions={messages.length <= 1}
         onBusinessCardAction={handleBusinessCardAction}
+        onViewRecords={handleViewRecords}
+        onContinueChat={handleContinueChat}
+        onEndChat={handleEndChat}
       />
     </div>
   )

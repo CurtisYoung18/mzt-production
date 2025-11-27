@@ -23,7 +23,10 @@ interface ChatMainProps {
   isLoading?: boolean
   connectionError?: string | null
   showQuickActions?: boolean
-  onBusinessCardAction?: (cardType: string, action: string) => void
+  onBusinessCardAction?: (cardType: string, action: string, extraData?: { message?: string }) => void
+  onViewRecords?: () => void
+  onContinueChat?: () => void
+  onEndChat?: (rating: number) => void
 }
 
 const ASSISTANT_AVATAR = "/images/icon.jpeg"
@@ -42,6 +45,9 @@ export default function ChatMain({
   connectionError,
   showQuickActions = true,
   onBusinessCardAction,
+  onViewRecords,
+  onContinueChat,
+  onEndChat,
 }: ChatMainProps) {
   const [input, setInput] = useState("")
   const [isFocused, setIsFocused] = useState(false)
@@ -197,6 +203,9 @@ export default function ChatMain({
                       userId={userId}
                       userInfo={userInfo}
                       onBusinessCardAction={onBusinessCardAction}
+                      onViewRecords={onViewRecords}
+                      onContinueChat={onContinueChat}
+                      onEndChat={onEndChat}
                     />
                     {message.content && (
                       <div className="flex items-center gap-1 ml-1 opacity-0 hover:opacity-100 transition-opacity">

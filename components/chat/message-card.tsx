@@ -14,6 +14,7 @@ import AccountDetailsCard from "./account-details-card"
 import LLMCard from "./llm-card"
 import AuthCard from "./auth-card"
 import SignCard from "./sign-card"
+import FinishCard from "./finish-card"
 
 // 业务卡片类型
 const BUSINESS_CARD_TYPES = ["withdrawl_auth", "sign", "finish"]
@@ -23,6 +24,9 @@ interface MessageCardProps {
   userId: string
   userInfo?: UserBasicInfo
   onBusinessCardAction?: (cardType: string, action: string, extraData?: { message?: string }) => void
+  onViewRecords?: () => void
+  onContinueChat?: () => void
+  onEndChat?: (rating: number) => void
 }
 
 // 解析 LLM 返回的 JSON 格式内容
@@ -49,7 +53,15 @@ function parseLLMResponse(content: string): LLMResponse | null {
   return null
 }
 
-export default function MessageCard({ message, userId, userInfo, onBusinessCardAction }: MessageCardProps) {
+export default function MessageCard({ 
+  message, 
+  userId, 
+  userInfo, 
+  onBusinessCardAction,
+  onViewRecords,
+  onContinueChat,
+  onEndChat
+}: MessageCardProps) {
   const [expanded, setExpanded] = useState(true)
   
   // 解析消息内容，检查是否为 LLM 结构化响应
@@ -253,6 +265,16 @@ export default function MessageCard({ message, userId, userInfo, onBusinessCardA
           message={llmCardMessage}
           userInfo={userInfo}
           onConfirm={() => onBusinessCardAction("sign", "confirm", { message: llmCardMessage })}
+        />
+      )}
+      
+      {/* Business Card - 完成卡片 */}
+      {llmCardType === "finish" && llmCardMessage && (
+        <FinishCard
+          message={llmCardMessage}
+          onViewRecords={onViewRecords}
+          onContinueChat={onContinueChat}
+          onEndChat={onEndChat}
         />
       )}
       

@@ -42,11 +42,14 @@ export async function PUT(request: NextRequest) {
       // Mock 模式：更新内存中的数据
       const userAttr = mockUserAttributes.find(a => a.user_id === userId)
       if (userAttr) {
+        const oldValue = (userAttr as Record<string, unknown>)[attributeName]
         // 动态更新属性
         (userAttr as Record<string, unknown>)[attributeName] = value
-        console.log(`[Mock] Updated ${userId}.${attributeName} = ${value}`)
-        return NextResponse.json({ success: true, message: "属性已更新" })
+        console.log(`[Mock API] Updated user attribute: ${userId}.${attributeName}`)
+        console.log(`[Mock API] Old value: ${oldValue} -> New value: ${value}`)
+        return NextResponse.json({ success: true, message: "属性已更新", oldValue, newValue: value })
       }
+      console.log(`[Mock API] User not found: ${userId}`)
       return NextResponse.json({ error: "用户不存在" }, { status: 404 })
     }
 
