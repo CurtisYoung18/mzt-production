@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { motion } from "framer-motion"
-import { Info, ChevronLeft, CheckSquare, Square } from "lucide-react"
+import { Info, CheckSquare, Square } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { UserBasicInfo } from "@/types/chat"
 
@@ -38,28 +38,24 @@ export default function AuthCard({ userInfo, onConfirm, className }: AuthCardPro
       )}
     >
       {/* Header */}
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100 dark:border-gray-800">
-        <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-          <ChevronLeft className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-        </div>
-        <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">
+      <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800">
+        <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 text-center">
           个人信息查询报送授权书
         </h3>
       </div>
 
-      {/* 重要提示 */}
-      <div className="mx-4 mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
-        <div className="flex items-start gap-2">
-          <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
-          <p className="text-xs text-blue-700 dark:text-blue-300 leading-relaxed">
-            <span className="font-semibold">重要提示：</span>
-            为了维护您的权益，请在签署本授权书前，仔细阅读本授权书各条款（特别是黑体字条款），关注您在授权书中的权利、义务。
-          </p>
+      {/* 授权书内容 - 包含重要提示 */}
+      <div className="px-4 py-4 max-h-[350px] overflow-y-auto">
+        {/* 重要提示 */}
+        <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
+          <div className="flex items-start gap-2">
+            <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
+            <p className="text-xs text-blue-700 dark:text-blue-300 leading-relaxed">
+              <span className="font-semibold">重要提示：</span>
+              为了维护您的权益，请在签署本授权书前，仔细阅读本授权书各条款（特别是黑体字条款），关注您在授权书中的权利、义务。
+            </p>
+          </div>
         </div>
-      </div>
-
-      {/* 授权书内容 */}
-      <div className="px-4 py-4 max-h-[300px] overflow-y-auto">
         <div className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed space-y-3">
           <p className="font-medium text-gray-900 dark:text-gray-100">福建省直单位住房公积金中心：</p>
           
