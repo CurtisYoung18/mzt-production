@@ -328,15 +328,33 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
         // 更新用户 is_auth 为 true（完成授权）
         console.log(`[Business Card] Updating is_auth for user ${user.userId} to true`)
         
+        // 1. 更新本地 mock 数据库
         const response = await fetch("/api/user/attribute", {
           method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
             userId: user.userId,
             attributeName: "is_auth",
             value: true,
-        }),
-      })
+          }),
+        })
+        
+        // 2. 同步更新 GPTBots 用户属性
+        const gptbotsResponse = await fetch("/api/user/gptbots-attribute", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId: user.userId,
+            attributeName: "is_auth",
+            value: true,
+          }),
+        })
+        
+        if (gptbotsResponse.ok) {
+          console.log("[Business Card] GPTBots is_auth updated successfully")
+        } else {
+          console.warn("[Business Card] Failed to update GPTBots is_auth")
+        }
 
         const responseText = await response.text()
         let responseData = {}
