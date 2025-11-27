@@ -326,6 +326,7 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
           role: "assistant",
           content: "",
           timestamp: new Date(),
+          isThinking: true, // Show thinking animation while AI generates summary
         },
       ])
 
@@ -383,14 +384,19 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
         if (!force && now - lastUpdateTime < UPDATE_INTERVAL) return
         lastUpdateTime = now
         
+        const cleanContent = summaryContent.replace(/<\/?think>/g, "").trim()
+        const cleanThinking = thinkingContent.replace(/<\/?think>/g, "").trim()
+        
         setMessages((prev) =>
           prev.map((m) =>
             m.id === summaryMessageId
               ? { 
                   ...m, 
-                  content: summaryContent.replace(/<\/?think>/g, "").trim(), 
-                  thinking: thinkingContent.replace(/<\/?think>/g, "").trim() || undefined,
-                  thinkingComplete
+                  content: cleanContent, 
+                  thinking: cleanThinking || undefined,
+                  thinkingComplete,
+                  // Remove thinking animation when content starts or thinking is complete
+                  isThinking: !cleanContent && !thinkingComplete ? m.isThinking : false
                 }
               : m
           )
