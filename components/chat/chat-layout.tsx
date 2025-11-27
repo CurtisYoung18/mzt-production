@@ -317,6 +317,11 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
       let buffer = ""
       let lastUpdateTime = 0
       const UPDATE_INTERVAL = 50
+      
+      // JSON mode detection
+      let isJsonMode: boolean | null = null
+      let jsonBuffer = ""
+      let extractedContent = ""
 
       const summaryMessageId = (Date.now() + 2).toString()
       setMessages((prev) => [
@@ -329,10 +334,55 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
           isThinking: true, // Show thinking animation while AI generates summary
         },
       ])
+      
+      // Try to extract content field from partial JSON
+      const tryExtractContent = (json: string): string | null => {
+        const contentMatch = json.match(/"content"\s*:\s*"((?:[^"\\]|\\.)*)(?:"|$)/)
+        if (contentMatch) {
+          try {
+            let str = contentMatch[1]
+            if (str.endsWith('\\')) str = str.slice(0, -1)
+            return JSON.parse(`"${str}"`)
+          } catch {
+            // Fallback: manual unescape
+            return contentMatch[1]
+              .replace(/\\n/g, '\n')
+              .replace(/\\r/g, '\r')
+              .replace(/\\t/g, '\t')
+              .replace(/\\"/g, '"')
+              .replace(/\\\\/g, '\\')
+          }
+        }
+        return null
+      }
+      
+      // Parse complete JSON
+      const parseJsonResponse = (content: string) => {
+        const trimmed = content.trim()
+        if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+          try {
+            const parsed = JSON.parse(trimmed)
+            if ('content' in parsed) {
+              return {
+                card_type: parsed.card_type,
+                card_message: parsed.card_message,
+                content: parsed.content || ''
+              }
+            }
+          } catch { /* ignore */ }
+        }
+        return null
+      }
 
       // Process chunk with proper tag handling
       const processChunk = (chunk: string, isFinal = false) => {
         buffer += chunk
+        jsonBuffer += chunk
+        
+        // Detect JSON mode
+        if (isJsonMode === null && jsonBuffer.trim().length > 0) {
+          isJsonMode = jsonBuffer.trim().startsWith('{')
+        }
         
         while (true) {
           const thinkStart = buffer.indexOf("<think>")
@@ -340,7 +390,7 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
           
           if (thinkStart !== -1 && !isInThinkingMode) {
             const beforeThink = buffer.substring(0, thinkStart)
-            if (beforeThink) summaryContent += beforeThink
+            if (beforeThink && !isJsonMode) summaryContent += beforeThink
             isInThinkingMode = true
             buffer = buffer.substring(thinkStart + 7)
             continue
@@ -364,27 +414,56 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
           const safeChunk = buffer.substring(0, safeLength)
           if (isInThinkingMode) {
             thinkingContent += safeChunk
-          } else {
+          } else if (!isJsonMode) {
             summaryContent += safeChunk
           }
           buffer = buffer.substring(safeLength)
         } else if (isFinal && buffer.length > 0) {
           if (isInThinkingMode) {
             thinkingContent += buffer
-          } else {
+          } else if (!isJsonMode) {
             summaryContent += buffer
           }
           buffer = ""
         }
+        
+        // In JSON mode, try to extract content
+        if (isJsonMode) {
+          const extracted = tryExtractContent(jsonBuffer)
+          if (extracted !== null) {
+            extractedContent = extracted
+          }
+        }
       }
 
       // Throttled UI update
-      const updateSummaryUI = (force = false) => {
+      const updateSummaryUI = (force = false, isFinal = false) => {
         const now = Date.now()
         if (!force && now - lastUpdateTime < UPDATE_INTERVAL) return
         lastUpdateTime = now
         
-        const cleanContent = summaryContent.replace(/<\/?think>/g, "").trim()
+        // Final JSON parsing
+        const llmResponse = isFinal ? parseJsonResponse(jsonBuffer.trim()) : null
+        
+        let displayContent = ""
+        let shouldShowThinking = true
+        let cardType = undefined
+        let cardMessage = undefined
+        
+        if (isFinal && llmResponse) {
+          displayContent = llmResponse.content
+          cardType = llmResponse.card_type
+          cardMessage = llmResponse.card_message
+          shouldShowThinking = false
+        } else if (isJsonMode) {
+          displayContent = extractedContent
+          shouldShowThinking = !extractedContent
+        } else {
+          const cleanContent = summaryContent.replace(/<\/?think>/g, "").trim()
+          displayContent = cleanContent
+          shouldShowThinking = !cleanContent && !thinkingComplete
+        }
+        
         const cleanThinking = thinkingContent.replace(/<\/?think>/g, "").trim()
         
         setMessages((prev) =>
@@ -392,11 +471,12 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
             m.id === summaryMessageId
               ? { 
                   ...m, 
-                  content: cleanContent, 
+                  content: displayContent, 
                   thinking: cleanThinking || undefined,
                   thinkingComplete,
-                  // Remove thinking animation when content starts or thinking is complete
-                  isThinking: !cleanContent && !thinkingComplete ? m.isThinking : false
+                  isThinking: shouldShowThinking,
+                  llmCardType: cardType,
+                  llmCardMessage: cardMessage,
                 }
               : m
           )
@@ -422,7 +502,7 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
                   }
                 } else if (event.code === 0 && event.message === "End") {
                   processChunk("", true)
-                  updateSummaryUI(true)
+                  updateSummaryUI(true, true)
                 }
               } catch {
                 // Skip invalid JSON
@@ -559,14 +639,26 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
 
       // Try to extract content field from partial JSON
       const tryExtractJsonContent = (json: string): string | null => {
-        // Look for "content": "..." pattern
+        // Look for "content": "..." pattern - handle escaped characters
         const contentMatch = json.match(/"content"\s*:\s*"((?:[^"\\]|\\.)*)(?:"|$)/)
         if (contentMatch) {
-          // Unescape the content
+          // Unescape the content using JSON.parse
           try {
-            return JSON.parse(`"${contentMatch[1]}"`)
+            // Make sure we have a complete string for JSON.parse
+            let str = contentMatch[1]
+            // If the string ends with incomplete escape, remove it
+            if (str.endsWith('\\')) {
+              str = str.slice(0, -1)
+            }
+            return JSON.parse(`"${str}"`)
           } catch {
+            // Fallback: manual unescape for common cases
             return contentMatch[1]
+              .replace(/\\n/g, '\n')
+              .replace(/\\r/g, '\r')
+              .replace(/\\t/g, '\t')
+              .replace(/\\"/g, '"')
+              .replace(/\\\\/g, '\\')
           }
         }
         return null
@@ -817,7 +909,10 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
       // Force final update with JSON parsing
       updateUI(true, true)
       
-      if (!fullContent && !thinkingContent) {
+      // Check for empty content - in JSON mode, check jsonBuffer instead of fullContent
+      const hasContent = isJsonMode ? (jsonBuffer.trim().length > 0) : (fullContent.length > 0)
+      
+      if (!hasContent && !thinkingContent) {
         setMessages((prev) =>
           prev.map((m) => (m.id === aiMessageId ? { ...m, content: "抱歉，我暂时无法处理您的请求，请稍后再试。", isThinking: false } : m))
         )
