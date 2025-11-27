@@ -2,7 +2,7 @@
 // 通用提示卡片类型
 export type LLMAlertCardType = "warning" | "success" | "info" | "error"
 // 业务流程卡片类型
-export type LLMBusinessCardType = "auth" | "sign" | "finish" | "gjj_details"
+export type LLMBusinessCardType = "auth" | "sms_sign" | "bank_sign" | "finish" | "gjj_details"
 // 所有卡片类型
 export type LLMCardType = LLMAlertCardType | LLMBusinessCardType | null
 

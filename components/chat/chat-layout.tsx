@@ -272,13 +272,13 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
         
         const response = await fetch("/api/user/attribute", {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
             userId: user.userId,
             attributeName: "is_auth",
             value: true,
-          }),
-        })
+        }),
+      })
 
         const responseText = await response.text()
         let responseData = {}
@@ -319,16 +319,11 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
       }
     }
     
-    if (cardType === "sign" && action === "confirm") {
+    // 手机签约完成
+    if (cardType === "sms_sign" && action === "confirm") {
       try {
-        // 根据消息内容判断签约类型
-        const message = extraData?.message || ""
-        const isPhoneSign = message.includes("手机") || message.includes("电话")
-        
-        // 手机签约: 80000 → 80001
-        // 银行卡签约: 90000 → 90001
-        const newPhase = isPhoneSign ? "80001" : "90001"
-        const signType = isPhoneSign ? "手机号" : "银行卡"
+        // 手机签约: 70000 → 70001
+        const newPhase = "70001"
         
         console.log(`[Business Card] Updating phase for user ${user.userId} to ${newPhase}`)
         
@@ -357,7 +352,46 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
         }
 
         // 自动发送用户消息
-        handleSendMessage(`我已完成${signType}签约，请继续`)
+        handleSendMessage("我已完成手机号签约，请继续")
+      } catch (error) {
+        console.error("[Business Card] Error:", error)
+      }
+    }
+    
+    // 银行卡签约完成
+    if (cardType === "bank_sign" && action === "confirm") {
+      try {
+        // 银行卡签约: 80000 → 80001
+        const newPhase = "80001"
+        
+        console.log(`[Business Card] Updating phase for user ${user.userId} to ${newPhase}`)
+        
+        const response = await fetch("/api/user/attribute", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId: user.userId,
+            attributeName: "phase",
+            value: newPhase,
+          }),
+        })
+
+        const responseText = await response.text()
+        let responseData = {}
+        try {
+          responseData = responseText ? JSON.parse(responseText) : {}
+              } catch {
+          console.error("[Business Card] Failed to parse response:", responseText)
+        }
+        
+        console.log(`[Business Card] API Response - Status: ${response.status}, Data:`, responseData)
+        
+        if (!response.ok) {
+          console.warn("[Business Card] API returned non-OK status, but continuing flow")
+        }
+
+        // 自动发送用户消息
+        handleSendMessage("我已完成银行卡签约，请继续")
       } catch (error) {
         console.error("[Business Card] Error:", error)
       }
@@ -408,8 +442,8 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
     // Use flushSync to ensure both messages are added synchronously
     flushSync(() => {
       setMessages((prev) => [...prev, userMessage, aiMessage])
-      setIsLoading(true)
-      setConnectionError(null)
+    setIsLoading(true)
+    setConnectionError(null)
     })
 
     try {

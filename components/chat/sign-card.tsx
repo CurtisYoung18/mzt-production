@@ -9,11 +9,12 @@ import type { UserBasicInfo } from "@/types/chat"
 interface SignCardProps {
   message: string
   userInfo: UserBasicInfo
+  signType: "phone" | "bank" // 明确指定签约类型
   onConfirm: () => void
   className?: string
 }
 
-// 判断是手机签约还是银行卡签约
+// 判断是手机签约还是银行卡签约（备用，现在由 signType prop 直接指定）
 function getSignType(message: string): "phone" | "bank" {
   if (message.includes("手机") || message.includes("电话")) {
     return "phone"
@@ -21,13 +22,12 @@ function getSignType(message: string): "phone" | "bank" {
   return "bank"
 }
 
-export default function SignCard({ message, userInfo, onConfirm, className }: SignCardProps) {
+export default function SignCard({ message, userInfo, signType, onConfirm, className }: SignCardProps) {
   const [isFlipped, setIsFlipped] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isComplete, setIsComplete] = useState(false)
   const [agreed, setAgreed] = useState(false)
 
-  const signType = getSignType(message)
   const isPhone = signType === "phone"
 
   const handleGoSign = () => {

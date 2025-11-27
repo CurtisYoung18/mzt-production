@@ -18,7 +18,7 @@ import SignCard from "./sign-card"
 import FinishCard from "./finish-card"
 
 // 业务卡片类型
-const BUSINESS_CARD_TYPES = ["auth", "sign", "finish", "gjj_details"]
+const BUSINESS_CARD_TYPES = ["auth", "sms_sign", "bank_sign", "finish", "gjj_details"]
 
 interface MessageCardProps {
   message: Message
@@ -297,12 +297,23 @@ export default function MessageCard({
         </motion.div>
       )}
       
-      {/* Business Card - 签约卡片 */}
-      {llmCardType === "sign" && llmCardMessage && userInfo && onBusinessCardAction && (
+      {/* Business Card - 手机签约卡片 (card_type: "sms_sign") */}
+      {llmCardType === "sms_sign" && llmCardMessage && userInfo && onBusinessCardAction && (
         <SignCard
           message={llmCardMessage}
           userInfo={userInfo}
-          onConfirm={() => onBusinessCardAction("sign", "confirm", { message: llmCardMessage })}
+          signType="phone"
+          onConfirm={() => onBusinessCardAction("sms_sign", "confirm")}
+        />
+      )}
+      
+      {/* Business Card - 银行卡签约卡片 (card_type: "bank_sign") */}
+      {llmCardType === "bank_sign" && llmCardMessage && userInfo && onBusinessCardAction && (
+        <SignCard
+          message={llmCardMessage}
+          userInfo={userInfo}
+          signType="bank"
+          onConfirm={() => onBusinessCardAction("bank_sign", "confirm")}
         />
       )}
       
