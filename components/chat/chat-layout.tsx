@@ -555,13 +555,18 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
           }),
         })
 
-        const responseData = await response.json()
+        const responseText = await response.text()
+        let responseData = {}
+        try {
+          responseData = responseText ? JSON.parse(responseText) : {}
+        } catch {
+          console.error("[Business Card] Failed to parse response:", responseText)
+        }
+        
+        console.log(`[Business Card] API Response - Status: ${response.status}, Data:`, responseData)
         
         if (!response.ok) {
-          console.error("[Business Card] API Error:", responseData)
-          console.warn("[Business Card] Continuing despite API error")
-        } else {
-          console.log("[Business Card] User phase updated to 30001", responseData)
+          console.warn("[Business Card] API returned non-OK status, but continuing flow")
         }
 
         // 自动发送用户消息
@@ -594,14 +599,18 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
           }),
         })
 
-        const responseData = await response.json()
+        const responseText = await response.text()
+        let responseData = {}
+        try {
+          responseData = responseText ? JSON.parse(responseText) : {}
+        } catch {
+          console.error("[Business Card] Failed to parse response:", responseText)
+        }
+        
+        console.log(`[Business Card] API Response - Status: ${response.status}, Data:`, responseData)
         
         if (!response.ok) {
-          console.error("[Business Card] API Error:", responseData)
-          // 不阻止流程继续，只记录错误
-          console.warn("[Business Card] Continuing despite API error")
-        } else {
-          console.log(`[Business Card] User phase updated to ${newPhase}`, responseData)
+          console.warn("[Business Card] API returned non-OK status, but continuing flow")
         }
 
         // 自动发送用户消息
