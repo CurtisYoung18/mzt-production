@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Download, ChevronDown, ChevronUp } from "lucide-react"
 import type { Message } from "@/types/chat"
 import ThinkingProcess from "./thinking-process"
+import AccountDetailsCard from "./account-details-card"
 
 interface MessageCardProps {
   message: Message
@@ -15,6 +16,16 @@ interface MessageCardProps {
 
 export default function MessageCard({ message, userId }: MessageCardProps) {
   const [expanded, setExpanded] = useState(true)
+
+  // Check if message has account info
+  if (message.accountInfo) {
+    return (
+      <AccountDetailsCard
+        accountInfo={message.accountInfo}
+        className="w-full max-w-md"
+      />
+    )
+  }
 
   // Check if message has structured card data
   if (message.cardData) {

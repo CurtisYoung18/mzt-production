@@ -1,8 +1,9 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Sparkles, ChevronDown, ChevronUp, CheckCircle2 } from "lucide-react"
+import { useState, useEffect, useRef } from "react"
+import { ChevronDown, ChevronUp, CheckCircle2, Sparkles, Brain } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { motion, AnimatePresence } from "framer-motion"
 
 interface ThinkingProcessProps {
   thinking: string
@@ -11,102 +12,119 @@ interface ThinkingProcessProps {
 }
 
 export default function ThinkingProcess({ thinking, isComplete = false, className }: ThinkingProcessProps) {
-  const [isExpanded, setIsExpanded] = useState(!isComplete) // Auto-expand while thinking
-  const [displayedText, setDisplayedText] = useState("")
+  const [isExpanded, setIsExpanded] = useState(!isComplete)
+  const contentRef = useRef<HTMLDivElement>(null)
 
   // Auto-collapse when thinking completes
   useEffect(() => {
     if (isComplete && isExpanded) {
-      // Delay collapse slightly to show completion
       const timer = setTimeout(() => {
         setIsExpanded(false)
       }, 1500)
       return () => clearTimeout(timer)
-    } else if (!isComplete && thinking) {
-      // Auto-expand while streaming
+    } else if (!isComplete && thinking && !isExpanded) {
       setIsExpanded(true)
     }
   }, [isComplete, thinking])
 
-  // Display thinking content - show immediately without typewriter to avoid flickering
+  // Auto-scroll to bottom while thinking
   useEffect(() => {
-    if (!isExpanded || !thinking) {
-      setDisplayedText("")
-      return
+    if (isExpanded && !isComplete && contentRef.current) {
+      contentRef.current.scrollTop = contentRef.current.scrollHeight
     }
-
-    // Show content immediately - no typewriter effect to avoid flickering on updates
-    setDisplayedText(thinking)
-  }, [thinking, isExpanded])
+  }, [thinking, isExpanded, isComplete])
 
   if (!thinking) return null
 
   return (
     <div
       className={cn(
-        "bg-gray-50 dark:bg-muted/50 border border-gray-200 dark:border-border rounded-lg overflow-hidden transition-all duration-300",
+        "rounded-xl border overflow-hidden transition-all duration-300 will-change-auto",
+        isComplete 
+          ? "border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50" 
+          : "border-orange-300 dark:border-orange-700 bg-orange-50 dark:bg-orange-950/50",
         className
       )}
     >
       {/* Header */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full px-4 py-2.5 flex items-center justify-between hover:bg-gray-100/50 dark:hover:bg-muted/80 transition-colors group"
+        className={cn(
+          "w-full px-4 py-3 flex items-center justify-between transition-colors",
+          isComplete
+            ? "bg-gray-100/80 dark:bg-gray-800/80 hover:bg-gray-100 dark:hover:bg-gray-700/80"
+            : "bg-orange-100/80 dark:bg-orange-900/30 hover:bg-orange-100 dark:hover:bg-orange-900/50"
+        )}
       >
-        <div className="flex items-center gap-2 text-sm">
-          <div className="relative">
+        <div className="flex items-center gap-3 text-sm">
+          <div className="relative flex items-center justify-center w-5 h-5">
             {isComplete ? (
-              <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
+              <CheckCircle2 className="h-4 w-4 text-green-500" />
             ) : (
-              <Sparkles className="h-4 w-4 text-purple-600 dark:text-purple-400 animate-pulse" />
-            )}
-            {!isComplete && (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="h-2 w-2 bg-purple-400 rounded-full animate-ping" />
-              </div>
+              <>
+                <div className="absolute inset-0 bg-orange-500/20 rounded-full animate-ping" />
+                <Sparkles className="h-4 w-4 text-orange-500 animate-pulse relative z-10" />
+              </>
             )}
           </div>
-          <span className="font-medium text-gray-700 dark:text-gray-300">
+          <span className={cn(
+            "font-medium transition-colors",
+            isComplete ? "text-muted-foreground" : "text-foreground"
+          )}>
             {isComplete ? "思考完成" : "正在思考..."}
           </span>
-          {!isExpanded && thinking && (
-            <span className="text-xs text-muted-foreground ml-2 truncate max-w-[200px]">
-              {thinking.substring(0, 50)}...
+          {!isExpanded && (
+            <span className="text-xs text-muted-foreground ml-2 truncate max-w-[200px] opacity-60">
+              {thinking.replace(/\n/g, " ").substring(0, 60)}...
             </span>
           )}
         </div>
         <div
           className={cn(
-            "transition-transform duration-300",
+            "transition-transform duration-300 text-muted-foreground",
             isExpanded ? "rotate-180" : "rotate-0"
           )}
         >
-          {isExpanded ? (
-            <ChevronUp className="h-4 w-4 text-gray-600 dark:text-gray-400 group-hover:text-gray-800 dark:group-hover:text-gray-200" />
-          ) : (
-            <ChevronDown className="h-4 w-4 text-gray-600 dark:text-gray-400 group-hover:text-gray-800 dark:group-hover:text-gray-200" />
-          )}
+          <ChevronDown className="h-4 w-4" />
         </div>
       </button>
 
       {/* Content Area */}
-      <div
-        className={cn(
-          "transition-all duration-300 ease-in-out overflow-hidden",
-          isExpanded ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"
-        )}
-      >
-        <div className="px-4 py-3 border-t border-gray-200 dark:border-border bg-white/50 dark:bg-black/20">
-          <div className="prose prose-sm max-w-none">
-            <p className="whitespace-pre-wrap text-muted-foreground leading-relaxed text-sm font-mono">
-              {displayedText}
-              {!isComplete && isExpanded && (
-                <span className="inline-block w-2 h-4 bg-purple-500 ml-1 animate-pulse" />
+      <AnimatePresence initial={false} mode="wait">
+        {isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="overflow-hidden will-change-auto"
+          >
+            <div 
+              ref={contentRef}
+              className={cn(
+                "px-4 pb-4 pt-2 max-h-[300px] overflow-y-auto custom-scrollbar",
+                isComplete 
+                  ? "bg-gray-50 dark:bg-gray-800/50" 
+                  : "bg-orange-50/50 dark:bg-orange-950/30"
               )}
-            </p>
-          </div>
-        </div>
-      </div>
+            >
+              <div className={cn(
+                "pl-4 border-l-2 py-1",
+                isComplete 
+                  ? "border-gray-300 dark:border-gray-600" 
+                  : "border-orange-400 dark:border-orange-600"
+              )}>
+                <p className="whitespace-pre-wrap text-gray-600 dark:text-gray-400 text-sm font-mono leading-relaxed">
+                  {thinking}
+                  {!isComplete && (
+                    <span className="inline-block w-1.5 h-4 bg-orange-500 ml-1 align-middle animate-pulse rounded-sm" />
+                  )}
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

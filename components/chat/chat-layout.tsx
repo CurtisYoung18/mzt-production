@@ -149,6 +149,187 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
     }
   }
 
+  const handleAccountQuery = async () => {
+    // Add user message for account query
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      role: "user",
+      content: "我要查询公积金账户信息",
+      timestamp: new Date(),
+    }
+    setMessages((prev) => [...prev, userMessage])
+    setIsLoading(true)
+
+    try {
+      // Fetch account info from API
+      const response = await fetch(`/api/account/info?userId=${user.userId}`)
+      if (!response.ok) {
+        throw new Error("获取账户信息失败")
+      }
+      const { data: accountInfo } = await response.json()
+
+      // Create AI message with account info card
+      const aiMessageWithCard: Message = {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        content: "",
+        timestamp: new Date(),
+        accountInfo,
+      }
+      setMessages((prev) => [...prev, aiMessageWithCard])
+
+      // Now send to AI for summary
+      const convId = await initConversation()
+      const summaryPrompt = `用户想要查询公积金账号，这是其账号详细信息：${JSON.stringify(accountInfo)}，请做一个简短友好的总结，告诉用户他的账户基本情况。`
+
+      const aiResponse = await fetch("/api/chat/message", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          conversationId: convId,
+          messages: [{ role: "user", content: [{ type: "text", text: summaryPrompt }] }],
+        }),
+      })
+
+      if (!aiResponse.ok) {
+        throw new Error("AI 总结失败")
+      }
+
+      // Handle streaming summary
+      const reader = aiResponse.body?.getReader()
+      const decoder = new TextDecoder()
+      let summaryContent = ""
+      let thinkingContent = ""
+      let isInThinkingMode = false
+      let thinkingComplete = false
+      let buffer = ""
+      let lastUpdateTime = 0
+      const UPDATE_INTERVAL = 50
+
+      const summaryMessageId = (Date.now() + 2).toString()
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: summaryMessageId,
+          role: "assistant",
+          content: "",
+          timestamp: new Date(),
+        },
+      ])
+
+      // Process chunk with proper tag handling
+      const processChunk = (chunk: string, isFinal = false) => {
+        buffer += chunk
+        
+        while (true) {
+          const thinkStart = buffer.indexOf("<think>")
+          const thinkEnd = buffer.indexOf("</think>")
+          
+          if (thinkStart !== -1 && !isInThinkingMode) {
+            const beforeThink = buffer.substring(0, thinkStart)
+            if (beforeThink) summaryContent += beforeThink
+            isInThinkingMode = true
+            buffer = buffer.substring(thinkStart + 7)
+            continue
+          }
+          
+          if (thinkEnd !== -1 && isInThinkingMode) {
+            const thinkPart = buffer.substring(0, thinkEnd)
+            if (thinkPart) thinkingContent += thinkPart
+            isInThinkingMode = false
+            thinkingComplete = true
+            buffer = buffer.substring(thinkEnd + 8)
+            continue
+          }
+          
+          break
+        }
+        
+        // Flush safe content
+        const safeLength = isFinal ? 0 : Math.max(0, buffer.length - 10)
+        if (safeLength > 0) {
+          const safeChunk = buffer.substring(0, safeLength)
+          if (isInThinkingMode) {
+            thinkingContent += safeChunk
+          } else {
+            summaryContent += safeChunk
+          }
+          buffer = buffer.substring(safeLength)
+        } else if (isFinal && buffer.length > 0) {
+          if (isInThinkingMode) {
+            thinkingContent += buffer
+          } else {
+            summaryContent += buffer
+          }
+          buffer = ""
+        }
+      }
+
+      // Throttled UI update
+      const updateSummaryUI = (force = false) => {
+        const now = Date.now()
+        if (!force && now - lastUpdateTime < UPDATE_INTERVAL) return
+        lastUpdateTime = now
+        
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === summaryMessageId
+              ? { 
+                  ...m, 
+                  content: summaryContent.replace(/<\/?think>/g, "").trim(), 
+                  thinking: thinkingContent.replace(/<\/?think>/g, "").trim() || undefined,
+                  thinkingComplete
+                }
+              : m
+          )
+        )
+      }
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+
+          const text = decoder.decode(value, { stream: true })
+          const lines = text.split("\n")
+
+          for (const line of lines) {
+            if (line.startsWith("data: ")) {
+              try {
+                const event = JSON.parse(line.slice(6))
+                if (event.code === 3 && event.message === "Text") {
+                  if (typeof event.data === "string") {
+                    processChunk(event.data)
+                    updateSummaryUI()
+                  }
+                } else if (event.code === 0 && event.message === "End") {
+                  processChunk("", true)
+                  updateSummaryUI(true)
+                }
+              } catch {
+                // Skip invalid JSON
+              }
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Account query error:", error)
+      const errorMsg = error instanceof Error ? error.message : "查询失败"
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: (Date.now() + 1).toString(),
+          role: "assistant",
+          content: `抱歉，${errorMsg}，请稍后重试。`,
+          timestamp: new Date(),
+        },
+      ])
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   const handleSendMessage = async (content: string, attachments?: File[]) => {
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -160,6 +341,9 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
     setMessages((prev) => [...prev, userMessage])
     setIsLoading(true)
     setConnectionError(null)
+    
+    // Show thinking animation immediately after user message is sent
+    // This ensures no blank waiting period
 
     try {
       const convId = await initConversation()
@@ -240,69 +424,87 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
       let isInThinkingMode = false
       let thinkingComplete = false
       let buffer = "" // Buffer for incomplete tags
+      let lastUpdateTime = 0
+      const UPDATE_INTERVAL = 50 // Throttle updates to every 50ms
 
       // Helper function to process text chunk and extract thinking/content in real-time
-      const processTextChunk = (chunk: string) => {
-        // Add chunk to buffer
+      const processTextChunk = (chunk: string, isFinal = false) => {
         buffer += chunk
         
-        // Check for thinking tag start - match <think> tag
-        const thinkStartIndex = buffer.indexOf("<think>")
-        // Check for thinking tag end - match </think> tag  
-        const thinkEndIndex = buffer.indexOf("</think>")
-        
-        // Process thinking start tag
-        if (thinkStartIndex !== -1 && !isInThinkingMode) {
-          // Found <think> tag, switch to thinking mode
-          isInThinkingMode = true
-          // Add content before <think> to fullContent
-          const beforeThink = buffer.substring(0, thinkStartIndex)
-          if (beforeThink.trim()) {
-            fullContent += beforeThink
-          }
-          // Remove everything up to and including <think>
-          buffer = buffer.substring(thinkStartIndex + 7) // 7 is length of "<think>"
-        }
-        
-        // Process thinking end tag
-        if (thinkEndIndex !== -1 && isInThinkingMode) {
-          // Found </think> tag, switch back to content mode
-          const thinkingPart = buffer.substring(0, thinkEndIndex)
-          thinkingContent += thinkingPart
-          // Remove everything up to and including </think> (8 chars)
-          buffer = buffer.substring(thinkEndIndex + 8)
-          isInThinkingMode = false
-          thinkingComplete = true
-        }
-        
-        // Process remaining buffer content
-        if (!isInThinkingMode && buffer.length > 0) {
-          // Not in thinking mode - check if we have a complete chunk (no pending tags)
-          const nextThinkStart = buffer.indexOf("<think>")
+        // Loop to process all complete tags in the buffer
+        while (true) {
+          const thinkStartIndex = buffer.indexOf("<think>")
+          const thinkEndIndex = buffer.indexOf("</think>")
           
-          if (nextThinkStart === -1) {
-            // No thinking tags in buffer, safe to add to content
-            fullContent += buffer
-            buffer = ""
+          if (thinkStartIndex !== -1 && !isInThinkingMode) {
+            // Found <think>, flush content before it
+            const beforeThink = buffer.substring(0, thinkStartIndex)
+            if (beforeThink) fullContent += beforeThink
+            
+            // Switch mode and advance buffer past <think>
+            isInThinkingMode = true
+            buffer = buffer.substring(thinkStartIndex + 7)
+            continue
+          }
+          
+          if (thinkEndIndex !== -1 && isInThinkingMode) {
+            // Found </think>, flush thinking content before it
+            const thinkingPart = buffer.substring(0, thinkEndIndex)
+            if (thinkingPart) thinkingContent += thinkingPart
+            
+            // Switch mode and advance buffer past </think>
+            isInThinkingMode = false
+            thinkingComplete = true
+            buffer = buffer.substring(thinkEndIndex + 8)
+            continue
+          }
+          
+          // No complete tags found
+          break
+        }
+        
+        // Process remaining buffer
+        // Only flush safe part if not final, to avoid splitting tags across chunks
+        // Keep last 10 chars in buffer unless it's the final chunk
+        const safeLength = isFinal ? 0 : Math.max(0, buffer.length - 10)
+        
+        if (safeLength > 0) {
+          const safeChunk = buffer.substring(0, safeLength)
+          if (isInThinkingMode) {
+            thinkingContent += safeChunk
           } else {
-            // Has thinking tag ahead, only add content before it
-            fullContent += buffer.substring(0, nextThinkStart)
-            buffer = buffer.substring(nextThinkStart)
+            fullContent += safeChunk
           }
-        } else if (isInThinkingMode && buffer.length > 0) {
-          // In thinking mode - check if we have a complete chunk (no pending end tag)
-          const nextThinkEnd = buffer.indexOf("</think>")
-          
-          if (nextThinkEnd === -1) {
-            // No end tag in buffer, safe to add to thinking
+          buffer = buffer.substring(safeLength)
+        } else if (isFinal && buffer.length > 0) {
+          // Final flush
+          if (isInThinkingMode) {
             thinkingContent += buffer
-            buffer = ""
           } else {
-            // Has end tag ahead, only add thinking before it
-            thinkingContent += buffer.substring(0, nextThinkEnd)
-            buffer = buffer.substring(nextThinkEnd)
+            fullContent += buffer
           }
+          buffer = ""
         }
+      }
+      
+      // Throttled UI update function
+      const updateUI = (force = false) => {
+        const now = Date.now()
+        if (!force && now - lastUpdateTime < UPDATE_INTERVAL) return
+        lastUpdateTime = now
+        
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === aiMessageId
+              ? {
+                  ...m,
+                  content: fullContent || "",
+                  thinking: thinkingContent || undefined,
+                  thinkingComplete: thinkingComplete,
+                }
+              : m
+          )
+        )
       }
 
       if (reader) {
@@ -324,47 +526,12 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
                   // Text content - process in real-time
                   if (typeof event.data === "string") {
                     processTextChunk(event.data)
-                    
-                    // Update UI in real-time
-                    setMessages((prev) =>
-                      prev.map((m) =>
-                        m.id === aiMessageId
-                          ? {
-                              ...m,
-                              content: fullContent || "",
-                              thinking: thinkingContent || undefined,
-                              thinkingComplete: thinkingComplete,
-                            }
-                          : m
-                      )
-                    )
+                    updateUI() // Throttled update
                   }
                 } else if (event.code === 10 && event.message === "FlowOutput") {
-                  // FlowOutput - extract content from output array
-                  if (event.data && Array.isArray(event.data)) {
-                    for (const output of event.data) {
-                      if (output.content) {
-                        if (typeof output.content === "string") {
-                          processTextChunk(output.content)
-                        } else if (output.content.text) {
-                          processTextChunk(output.content.text)
-                        }
-                        
-                        // Update UI in real-time
-                        setMessages((prev) =>
-                          prev.map((m) =>
-                            m.id === aiMessageId
-                              ? {
-                                  ...m,
-                                  content: fullContent || "",
-                                  thinking: thinkingContent || undefined,
-                                }
-                              : m
-                          )
-                        )
-                      }
-                    }
-                  }
+                  // FlowOutput often contains the full/partial content that might duplicate what received in Text events.
+                  // We intentionally ignore it to prevent duplication, relying on Text events for streaming.
+                  console.log("[v0] Skipping FlowOutput to prevent duplication")
                 } else if (event.code === 39 && event.message === "Audio") {
                   // Audio transcript
                   if (event.data?.transcript) {
@@ -383,32 +550,28 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
                   }
                 } else if (event.code === 0 && event.message === "End") {
                   // Stream ended - process any remaining buffer
-                  if (buffer.trim()) {
-                    if (isInThinkingMode) {
-                      thinkingContent += buffer
-                      thinkingComplete = true
-                    } else {
-                      fullContent += buffer
-                    }
-                    buffer = ""
-                  }
+                  processTextChunk("", true) // Flush buffer
                   
-                  // Clean up any remaining tags
-                  thinkingContent = thinkingContent.replace(/<\/think>/g, "").trim()
-                  fullContent = fullContent.replace(/<think>/g, "").replace(/<\/think>/g, "").trim()
+                  // Clean up any remaining tags or partial tags
+                  // Remove </think> and any trailing partial tags like </think
+                  thinkingContent = thinkingContent
+                    .replace(/<\/think>/g, "")
+                    .replace(/<\/think$/i, "")
+                    .replace(/<\/thin$/i, "")
+                    .replace(/<\/thi$/i, "")
+                    .replace(/<\/th$/i, "")
+                    .replace(/<\/t$/i, "")
+                    .replace(/<\/$|<$|[^>]$/i, (match) => match.startsWith("</") || match.startsWith("<") ? "" : match)
+                    .trim()
+                    
+                  // Clean up fullContent
+                  fullContent = fullContent
+                    .replace(/<think>/g, "")
+                    .replace(/<\/think>/g, "")
+                    .trim()
                   
-                  setMessages((prev) =>
-                    prev.map((m) =>
-                      m.id === aiMessageId
-                        ? {
-                            ...m,
-                            content: fullContent || "抱歉，我暂时无法处理您的请求，请稍后再试。",
-                            thinking: thinkingContent || undefined,
-                            thinkingComplete: true,
-                          }
-                        : m
-                    )
-                  )
+                  // Force final update
+                  updateUI(true)
                   console.log("[v0] Stream ended")
                 } else if (event.code === 11 && event.message === "MessageInfo") {
                   // MessageInfo - log for debugging
@@ -426,33 +589,20 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
       }
 
       // Final processing if stream ended without End event
-      if (buffer.trim()) {
-        if (isInThinkingMode) {
-          thinkingContent += buffer
-          thinkingComplete = true
-        } else {
-          fullContent += buffer
-        }
-      }
+      processTextChunk("", true)
       
       // Clean up any remaining tags
-      thinkingContent = thinkingContent.replace(/<\/think>/g, "").trim()
+      thinkingContent = thinkingContent
+        .replace(/<\/think>/g, "")
+        .replace(/<\/think$/i, "")
+        .trim()
+      
       fullContent = fullContent.replace(/<think>/g, "").replace(/<\/think>/g, "").trim()
       
-      if (fullContent || thinkingContent) {
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === aiMessageId
-              ? {
-                  ...m,
-                  content: fullContent || "抱歉，我暂时无法处理您的请求，请稍后再试。",
-                  thinking: thinkingContent || undefined,
-                  thinkingComplete: thinkingComplete || true,
-                }
-              : m
-          )
-        )
-      } else {
+      // Force final update
+      updateUI(true)
+      
+      if (!fullContent && !thinkingContent) {
         setMessages((prev) =>
           prev.map((m) => (m.id === aiMessageId ? { ...m, content: "抱歉，我暂时无法处理您的请求，请稍后再试。" } : m))
         )
@@ -491,12 +641,14 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
       <ChatMain
         messages={messages}
         onSendMessage={handleSendMessage}
+        onAccountQuery={handleAccountQuery}
         userId={user.userId}
         userName={user.name}
         onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
         sidebarOpen={sidebarOpen}
         isLoading={isLoading}
         connectionError={connectionError}
+        showQuickActions={messages.length <= 1}
       />
     </div>
   )
