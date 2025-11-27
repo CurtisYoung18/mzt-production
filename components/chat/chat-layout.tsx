@@ -551,10 +551,39 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
       let buffer = "" // Buffer for incomplete tags
       let lastUpdateTime = 0
       const UPDATE_INTERVAL = 50 // Throttle updates to every 50ms
+      
+      // JSON mode detection and parsing
+      let isJsonMode: boolean | null = null // null = not yet determined, true = JSON mode, false = normal mode
+      let jsonBuffer = "" // Accumulate all content for JSON parsing
+      let extractedContent = "" // Extracted content field from JSON (for streaming display)
+
+      // Try to extract content field from partial JSON
+      const tryExtractJsonContent = (json: string): string | null => {
+        // Look for "content": "..." pattern
+        const contentMatch = json.match(/"content"\s*:\s*"((?:[^"\\]|\\.)*)(?:"|$)/)
+        if (contentMatch) {
+          // Unescape the content
+          try {
+            return JSON.parse(`"${contentMatch[1]}"`)
+          } catch {
+            return contentMatch[1]
+          }
+        }
+        return null
+      }
 
       // Helper function to process text chunk and extract thinking/content in real-time
       const processTextChunk = (chunk: string, isFinal = false) => {
         buffer += chunk
+        jsonBuffer += chunk // Also accumulate for JSON detection
+        
+        // Detect JSON mode on first meaningful content
+        if (isJsonMode === null && jsonBuffer.trim().length > 0) {
+          isJsonMode = jsonBuffer.trim().startsWith('{')
+          if (isJsonMode) {
+            console.log("[v0] JSON mode detected - will show thinking until content extracted")
+          }
+        }
         
         // Loop to process all complete tags in the buffer
         while (true) {
@@ -564,7 +593,7 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
           if (thinkStartIndex !== -1 && !isInThinkingMode) {
             // Found <think>, flush content before it
             const beforeThink = buffer.substring(0, thinkStartIndex)
-            if (beforeThink) fullContent += beforeThink
+            if (beforeThink && !isJsonMode) fullContent += beforeThink
             
             // Switch mode and advance buffer past <think>
             isInThinkingMode = true
@@ -597,7 +626,8 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
           const safeChunk = buffer.substring(0, safeLength)
           if (isInThinkingMode) {
             thinkingContent += safeChunk
-          } else {
+          } else if (!isJsonMode) {
+            // Only add to fullContent if not in JSON mode
             fullContent += safeChunk
           }
           buffer = buffer.substring(safeLength)
@@ -605,14 +635,22 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
           // Final flush
           if (isInThinkingMode) {
             thinkingContent += buffer
-          } else {
+          } else if (!isJsonMode) {
             fullContent += buffer
           }
           buffer = ""
         }
+        
+        // In JSON mode, try to extract content for streaming display
+        if (isJsonMode) {
+          const extracted = tryExtractJsonContent(jsonBuffer)
+          if (extracted !== null) {
+            extractedContent = extracted
+          }
+        }
       }
       
-      // Parse LLM JSON response format
+      // Parse LLM JSON response format (final parsing)
       const parseLLMJsonResponse = (content: string) => {
         if (!content) return null
         const trimmed = content.trim()
@@ -640,20 +678,37 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
         if (!force && now - lastUpdateTime < UPDATE_INTERVAL) return
         lastUpdateTime = now
         
-        // Only parse JSON on final update
-        const llmResponse = isFinal ? parseLLMJsonResponse(fullContent) : null
+        // Final JSON parsing
+        const llmResponse = isFinal ? parseLLMJsonResponse(jsonBuffer.trim()) : null
+        
+        // Determine what content to display
+        let displayContent = ""
+        let shouldShowThinking = true
+        
+        if (isFinal && llmResponse) {
+          // Final: use parsed JSON content
+          displayContent = llmResponse.content
+          shouldShowThinking = false
+        } else if (isJsonMode) {
+          // JSON mode: show extracted content if available, otherwise keep thinking
+          displayContent = extractedContent
+          shouldShowThinking = !extractedContent // Keep thinking until content is extracted
+        } else {
+          // Normal mode: show fullContent
+          displayContent = fullContent || ""
+          shouldShowThinking = !fullContent && !thinkingComplete
+        }
         
         setMessages((prev) =>
           prev.map((m) =>
             m.id === aiMessageId
               ? {
                   ...m,
-                  // If LLM returned JSON, use parsed content; otherwise use raw content
-                  content: llmResponse ? llmResponse.content : (fullContent || ""),
+                  content: displayContent,
                   thinking: thinkingContent || undefined,
                   thinkingComplete: thinkingComplete,
-                  isThinking: !fullContent && !thinkingComplete, // Clear isThinking when content arrives
-                  // Add LLM card fields if present
+                  isThinking: shouldShowThinking,
+                  // Add LLM card fields if present (only on final)
                   llmCardType: llmResponse?.card_type || undefined,
                   llmCardMessage: llmResponse?.card_message || undefined,
                 }
