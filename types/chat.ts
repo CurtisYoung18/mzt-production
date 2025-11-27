@@ -1,10 +1,23 @@
 // LLM 返回的结构化响应格式
-export type LLMCardType = "warning" | "success" | "info" | "error" | null
+// 通用提示卡片类型
+export type LLMAlertCardType = "warning" | "success" | "info" | "error"
+// 业务流程卡片类型
+export type LLMBusinessCardType = "withdrawl_auth" | "sign" | "finish"
+// 所有卡片类型
+export type LLMCardType = LLMAlertCardType | LLMBusinessCardType | null
 
 export interface LLMResponse {
   card_type?: LLMCardType
   card_message?: string
   content: string
+}
+
+// 用户基本信息（用于卡片显示）
+export interface UserBasicInfo {
+  name: string
+  phone: string
+  idType: string
+  idNumber: string
 }
 
 export interface Message {

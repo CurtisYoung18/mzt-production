@@ -140,11 +140,16 @@ export const mockAccountInfo = [
 ]
 
 // 用户属性数据
+// Phase 字典:
+// 30000: 未授权 | 30001: 完成授权 | 30002: 已授权
+// 80000: 本人未手机签约 | 80001: 本人完成手机签约 | 80002: 本人已手机签约
+// 90000: 本人未银行卡签约 | 90001: 本人完成银行卡签约 | 90002: 本人已银行卡签约
+// 15000: 满足租房提取条件
 export const mockUserAttributes = [
   {
     user_id: "U001",
     city: "福州",
-    phase: "AA001",
+    phase: "30000", // 未授权 - 演示授权流程
     is_authenticated: true,
     is_married: true,
     spouse_authorized: true,
@@ -163,7 +168,7 @@ export const mockUserAttributes = [
   {
     user_id: "U002",
     city: "泉州",
-    phase: "AA000",
+    phase: "80000", // 本人未手机签约 - 演示手机签约流程
     is_authenticated: false,
     is_married: false,
     spouse_authorized: false,
@@ -182,7 +187,7 @@ export const mockUserAttributes = [
   {
     user_id: "U003",
     city: "厦门",
-    phase: "C001",
+    phase: "90000", // 本人未银行卡签约 - 演示银行卡签约流程
     is_authenticated: true,
     is_married: false,
     spouse_authorized: false,
@@ -201,7 +206,7 @@ export const mockUserAttributes = [
   {
     user_id: "U004",
     city: "莆田",
-    phase: "AB000",
+    phase: "15000", // 满足租房提取条件 - 演示提取流程
     is_authenticated: true,
     is_married: true,
     spouse_authorized: false,

@@ -8,14 +8,20 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Download, ChevronDown, ChevronUp, Sparkles, Search } from "lucide-react"
-import type { Message, LLMCardType, LLMResponse } from "@/types/chat"
+import type { Message, LLMCardType, LLMResponse, UserBasicInfo } from "@/types/chat"
 import ThinkingProcess from "./thinking-process"
 import AccountDetailsCard from "./account-details-card"
 import LLMCard from "./llm-card"
+import AuthCard from "./auth-card"
+
+// 业务卡片类型
+const BUSINESS_CARD_TYPES = ["withdrawl_auth", "sign", "finish"]
 
 interface MessageCardProps {
   message: Message
   userId: string
+  userInfo?: UserBasicInfo
+  onBusinessCardAction?: (cardType: string, action: string) => void
 }
 
 // 解析 LLM 返回的 JSON 格式内容
@@ -42,7 +48,7 @@ function parseLLMResponse(content: string): LLMResponse | null {
   return null
 }
 
-export default function MessageCard({ message, userId }: MessageCardProps) {
+export default function MessageCard({ message, userId, userInfo, onBusinessCardAction }: MessageCardProps) {
   const [expanded, setExpanded] = useState(true)
   
   // 解析消息内容，检查是否为 LLM 结构化响应
@@ -58,6 +64,9 @@ export default function MessageCard({ message, userId }: MessageCardProps) {
     // 尝试从 content 中解析 JSON
     return parseLLMResponse(message.content)
   }, [message.content, message.llmCardType, message.llmCardMessage])
+  
+  // 检查是否为业务卡片类型
+  const isBusinessCard = parsedResponse?.card_type && BUSINESS_CARD_TYPES.includes(parsedResponse.card_type)
 
   // Show querying animation for data queries (e.g., account info)
   if (message.isQuerying && !message.accountInfo && !message.content) {
@@ -229,8 +238,16 @@ export default function MessageCard({ message, userId }: MessageCardProps) {
         />
       )}
       
-      {/* LLM Card (if card_type is present) */}
-      {llmCardType && llmCardMessage && (
+      {/* Business Card - 授权卡片 */}
+      {llmCardType === "withdrawl_auth" && userInfo && onBusinessCardAction && (
+        <AuthCard
+          userInfo={userInfo}
+          onConfirm={() => onBusinessCardAction("withdrawl_auth", "confirm")}
+        />
+      )}
+      
+      {/* LLM Alert Card (warning/success/info/error) */}
+      {llmCardType && !isBusinessCard && llmCardMessage && (
         <LLMCard
           type={llmCardType}
           message={llmCardMessage}

@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect, useRef } from "react"
 import { flushSync } from "react-dom"
 import ChatSidebar from "./chat-sidebar"
 import ChatMain from "./chat-main"
-import type { Message, ChatSession } from "@/types/chat"
+import type { Message, ChatSession, UserBasicInfo } from "@/types/chat"
 
 interface User {
   userId: string
@@ -528,6 +528,45 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
     }
   }
 
+  // 用户基本信息（用于业务卡片显示）
+  const userInfo: UserBasicInfo = {
+    name: user.name,
+    phone: user.phone,
+    idType: "二代身份证",
+    idNumber: user.idCard,
+  }
+
+  // 处理业务卡片操作
+  const handleBusinessCardAction = async (cardType: string, action: string) => {
+    console.log(`[Business Card] Type: ${cardType}, Action: ${action}`)
+    
+    if (cardType === "withdrawl_auth" && action === "confirm") {
+      try {
+        // 更新用户 phase 为 30001（完成授权）
+        const response = await fetch("/api/user/attribute", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId: user.userId,
+            attributeName: "phase",
+            value: "30001",
+          }),
+        })
+
+        if (!response.ok) {
+          throw new Error("更新用户属性失败")
+        }
+
+        console.log("[Business Card] User phase updated to 30001")
+
+        // 自动发送用户消息
+        handleSendMessage("我已完成授权，请继续")
+      } catch (error) {
+        console.error("[Business Card] Error:", error)
+      }
+    }
+  }
+
   const handleSendMessage = async (content: string, attachments?: File[]) => {
     const userMessageId = Date.now().toString()
     const aiMessageId = (Date.now() + 1).toString()
@@ -962,11 +1001,13 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
         onAccountQuery={handleAccountQuery}
         userId={user.userId}
         userName={user.name}
+        userInfo={userInfo}
         onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
         sidebarOpen={sidebarOpen}
         isLoading={isLoading}
         connectionError={connectionError}
         showQuickActions={messages.length <= 1}
+        onBusinessCardAction={handleBusinessCardAction}
       />
     </div>
   )

@@ -6,7 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Send, ThumbsUp, ThumbsDown, Paperclip, ImageIcon, FileText, X, Loader2, AlertCircle } from "lucide-react"
-import type { Message } from "@/types/chat"
+import type { Message, UserBasicInfo } from "@/types/chat"
 import MessageCard from "./message-card"
 import QuickActions from "./quick-actions"
 import { motion, AnimatePresence } from "framer-motion"
@@ -17,11 +17,13 @@ interface ChatMainProps {
   onAccountQuery: () => void
   userId: string
   userName: string
+  userInfo?: UserBasicInfo
   onToggleSidebar: () => void
   sidebarOpen: boolean
   isLoading?: boolean
   connectionError?: string | null
   showQuickActions?: boolean
+  onBusinessCardAction?: (cardType: string, action: string) => void
 }
 
 const ASSISTANT_AVATAR = "/images/icon.jpeg"
@@ -33,11 +35,13 @@ export default function ChatMain({
   onAccountQuery,
   userId,
   userName,
+  userInfo,
   onToggleSidebar,
   sidebarOpen,
   isLoading = false,
   connectionError,
   showQuickActions = true,
+  onBusinessCardAction,
 }: ChatMainProps) {
   const [input, setInput] = useState("")
   const [isFocused, setIsFocused] = useState(false)
@@ -188,7 +192,12 @@ export default function ChatMain({
                   </div>
                 ) : (
                   <>
-                    <MessageCard message={message} userId={userId} />
+                    <MessageCard 
+                      message={message} 
+                      userId={userId}
+                      userInfo={userInfo}
+                      onBusinessCardAction={onBusinessCardAction}
+                    />
                     {message.content && (
                       <div className="flex items-center gap-1 ml-1 opacity-0 hover:opacity-100 transition-opacity">
                         <Button variant="ghost" size="icon" className="h-7 w-7 hover:text-green-600 hover:bg-green-50">
