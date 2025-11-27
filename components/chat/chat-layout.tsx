@@ -359,6 +359,11 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
               : m
           )
         })
+        
+        // 自动发送用户消息
+        setTimeout(() => {
+          handleSendMessage("我已完成授权，请继续")
+        }, 500)
       } catch (error) {
         console.error("[Business Card] Error:", error)
       }
