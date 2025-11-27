@@ -103,13 +103,14 @@ export default function ExtractFlowChart({
   const isExtractTypeSelected = !!selectedExtractType || phaseOrder >= 2
   const isMarriageChecked = phaseOrder >= 5 // 进入签约阶段说明婚姻状态已检查
   const isSmsSignCompleted = phaseOrder >= 6 // 进入银行卡签约阶段说明手机已签约
-  const isBankSignCompleted = inLaterPhase || phaseNum >= 90000 // 进入后续阶段说明银行卡已签约
+  const isBankSignCompleted = inLaterPhase // 进入后续阶段(11000-14999或>=90000)说明银行卡已签约
   const isSigningCompleted = isSmsSignCompleted && isBankSignCompleted
-  const isMultiChildChecked = inLaterPhase && phaseNum >= 11000 // 多孩检查完成
-  const isDepositChecked = inLaterPhase && phaseNum >= 12000 // 缴存检查完成
-  const isPropertyChecked = inLaterPhase && phaseNum >= 13000 // 房产检查完成
-  const isLoanChecked = inLaterPhase && phaseNum >= 14000 // 贷款检查完成
-  const isExtractDetailsReady = phaseNum >= 14000
+  // 后续检查步骤必须在 inLaterPhase 为 true 且 phaseNum 在对应范围内
+  const isMultiChildChecked = inLaterPhase && (phaseNum >= 11000 || phaseNum >= 90000)
+  const isDepositChecked = inLaterPhase && phaseNum >= 12000 && phaseNum < 90000
+  const isPropertyChecked = inLaterPhase && phaseNum >= 13000 && phaseNum < 90000
+  const isLoanChecked = inLaterPhase && phaseNum >= 14000 && phaseNum < 90000
+  const isExtractDetailsReady = inLaterPhase && phaseNum >= 14000 && phaseNum < 90000
   const isSubmitted = isFinished
 
   // 判断当前激活步骤
