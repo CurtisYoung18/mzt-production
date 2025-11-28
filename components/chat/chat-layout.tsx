@@ -101,6 +101,7 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
   } | null>(null)
   const [selectedExtractType, setSelectedExtractType] = useState<string | null>(null)
   const [isFlowFinished, setIsFlowFinished] = useState(false)
+  const [showFlowChart, setShowFlowChart] = useState(false) // 只有触发 sms_sign 后才显示流程图
   const titleGenerationAttempted = useRef(false) // Prevent multiple title generation attempts
 
   // Function to generate session title using AI
@@ -275,6 +276,7 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
     setTitleGenerated(false) // Reset title generation flag for new session
     setSelectedExtractType(null) // 重置选择的提取类型
     setIsFlowFinished(false) // 重置完成状态
+    setShowFlowChart(false) // 重置流程图显示状态
     
     // 重置用户 mock 数据到初始状态（用于演示）
     console.log("[NewSession] Step 1: Calling reset API...")
@@ -338,8 +340,9 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
   // 处理业务卡片操作
   const handleBusinessCardAction = async (cardType: string, action: string, extraData?: { message?: string }) => {
     
+    // 提取流程授权 (card_type: "auth")
     if (cardType === "auth" && action === "confirm") {
-    try {
+      try {
         // 更新用户 is_auth 为 true（完成授权）
         
         // 1. 更新本地 mock 数据库
@@ -354,7 +357,7 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
         })
 
         // 2. 同步更新 GPTBots 用户属性
-        const gptbotsResponse = await fetch("/api/user/gptbots-attribute", {
+        await fetch("/api/user/gptbots-attribute", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -364,24 +367,13 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
         }),
       })
 
-
-        const responseText = await response.text()
-        let responseData = {}
-        try {
-          responseData = responseText ? JSON.parse(responseText) : {}
-        } catch {
-          // Ignore parse error
-        }
-
         // 获取用户可用的提取类型
         const attrResponse = await fetch(`/api/user/attribute?userId=${user.userId}`)
         const attrData = await attrResponse.json()
         const permitExtractTypes = attrData?.data?.permit_extract_types || []
         
-
         // 找到包含 auth 卡片的消息，更新它显示可用的提取类型
         setMessages((prev) => {
-          // 找到最后一条包含 auth 卡片的消息
           const lastAuthMessageIndex = [...prev].reverse().findIndex(m => m.llmCardType === "auth")
           if (lastAuthMessageIndex === -1) return prev
           
@@ -401,7 +393,57 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
           handleSendMessage("我已完成授权，请继续")
         }, 500)
       } catch (error) {
-        console.error("[Business Card] Error:", error)
+        console.error("[Business Card] auth error:", error)
+      }
+    }
+    
+    // 查询公积金授权 (card_type: "processing_auth") - 授权后只显示"授权成功"，不显示提取业务选项
+    if (cardType === "processing_auth" && action === "confirm") {
+      try {
+        // 1. 更新本地 mock 数据库
+        await fetch("/api/user/attribute", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId: user.userId,
+            attributeName: "is_auth",
+            value: true,
+          }),
+        })
+
+        // 2. 同步更新 GPTBots 用户属性
+        await fetch("/api/user/gptbots-attribute", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId: user.userId,
+            attributeName: "is_auth",
+            value: true,
+          }),
+        })
+        
+        // 找到包含 processing_auth 卡片的消息，更新 authCompleted（不显示提取类型气泡）
+        setMessages((prev) => {
+          const lastAuthMessageIndex = [...prev].reverse().findIndex(m => m.llmCardType === "processing_auth")
+          if (lastAuthMessageIndex === -1) return prev
+          
+          const actualIndex = prev.length - 1 - lastAuthMessageIndex
+          return prev.map((m, i) =>
+            i === actualIndex
+              ? { ...m, authCompleted: true } // 只设置 authCompleted，不设置 permitExtractTypes
+              : m
+          )
+        })
+        
+        // 刷新流程图的用户属性状态
+        fetchUserAttributes()
+        
+        // 自动发送用户消息
+        setTimeout(() => {
+          handleSendMessage("我已完成授权，请继续")
+        }, 500)
+      } catch (error) {
+        console.error("[Business Card] processing_auth error:", error)
       }
     }
     
@@ -478,7 +520,7 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
         
         // 自动发送用户消息
         handleSendMessage("我已完成银行卡签约，请继续")
-      } catch (error) {
+    } catch (error) {
         console.error("[Business Card] bank_sign error:", error)
       }
     }
@@ -786,6 +828,15 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
               : m
           )
         )
+        
+        // 当检测到 sms_sign 或 bank_sign card 时，显示流程图
+        if (isFinal && llmResponse?.card_type) {
+          const cardType = llmResponse.card_type
+          if (cardType === "sms_sign" || cardType === "bank_sign") {
+            console.log("[流程图] 检测到签约卡片，显示流程图:", cardType)
+            setShowFlowChart(true)
+          }
+        }
       }
 
       if (reader) {
@@ -901,11 +952,19 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
       const finalLlmResponse = isJsonMode ? parseLLMJsonResponse(jsonBuffer.trim()) : null
       if (finalLlmResponse?.card_type === "gjj_details") {
         try {
+          // 获取账户信息
           const accountResponse = await fetch(`/api/account/info?userId=${user.userId}`)
+          
+          // 获取用户可用的提取类型（用于在卡片下方显示）
+          const attrResponse = await fetch(`/api/user/attribute?userId=${user.userId}`)
+          const attrData = await attrResponse.json()
+          const permitExtractTypes = attrData?.data?.permit_extract_types || []
+          
           if (accountResponse.ok) {
             const { data: accountInfo } = await accountResponse.json()
             
-            // 更新当前消息，添加 accountInfo 展示账户卡片，同时保留 AI 返回的 content
+            // 更新当前消息，添加 accountInfo 和 permitExtractTypes
+            // 布局顺序：content 在上，账户卡片在中，提取业务气泡在下
             setMessages((prev) =>
               prev.map((m) =>
                 m.id === aiMessageId
@@ -913,7 +972,8 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
                       ...m, 
                       accountInfo, 
                       llmCardType: undefined,
-                      content: finalLlmResponse.content || m.content // 保留 AI 返回的 content
+                      content: finalLlmResponse.content || m.content, // 保留 AI 返回的 content
+                      permitExtractTypes // 可办理的提取业务类型
                     }
                   : m
               )
@@ -959,6 +1019,7 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
         userAttributes={flowUserAttributes}
         selectedExtractType={selectedExtractType}
         isFlowFinished={isFlowFinished}
+        showFlowChart={showFlowChart}
       />
       <ChatMain
         messages={messages}

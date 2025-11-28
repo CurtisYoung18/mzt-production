@@ -129,9 +129,9 @@ INSERT INTO user_attributes (
     spouse_authorized, history_extract_types, permit_extract_types, 
     can_extract, sms_signed, bank_card_signed
 ) VALUES 
-('U001', '福州', '1000', false, true, true, true, '["租房"]', '["租房", "购房", "还贷"]', true, false, false),
-('U002', '泉州', '1015', true, false, false, false, '[]', '["租房", "购房", "还贷", "离职", "退休"]', true, false, false),
-('U003', '厦门', '1018', true, true, false, false, '["购房"]', '["购房", "还贷"]', true, true, false),
+('U001', '福州', '1000', false, true, true, true, '["租房"]', '["租房", "购房", "公积金贷款", "组合贷款"]', true, false, false),
+('U002', '泉州', '1015', true, false, false, false, '[]', '["租房", "购房", "公积金贷款", "组合贷款", "离职", "退休"]', true, false, false),
+('U003', '厦门', '1018', true, true, false, false, '["购房"]', '["购房", "公积金贷款", "组合贷款"]', true, true, false),
 ('U004', '莆田', '1029', true, true, true, false, '[]', '["租房", "购房"]', true, true, true);
 
 -- 创建索引

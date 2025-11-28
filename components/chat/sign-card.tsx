@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Phone, CreditCard, CheckCircle, Loader2, ArrowRight } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -27,12 +27,46 @@ export default function SignCard({ message, userInfo, signType, onConfirm, class
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isComplete, setIsComplete] = useState(false)
   const [agreed, setAgreed] = useState(false)
+  const confirmButtonRef = useRef<HTMLDivElement>(null)
 
   const isPhone = signType === "phone"
 
   const handleGoSign = () => {
     setIsFlipped(true)
   }
+
+  // 翻转后自动滚动到确认按钮
+  useEffect(() => {
+    if (isFlipped) {
+      // 延迟等待翻转动画完成
+      setTimeout(() => {
+        const element = confirmButtonRef.current
+        if (!element) return
+        
+        // 查找 Radix ScrollArea 的 viewport（shadcn/ui 使用的）
+        const radixViewport = document.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement
+        if (radixViewport) {
+          const elementRect = element.getBoundingClientRect()
+          const viewportRect = radixViewport.getBoundingClientRect()
+          
+          // 如果按钮在视口下方，需要滚动
+          if (elementRect.bottom > viewportRect.bottom) {
+            const scrollAmount = elementRect.bottom - viewportRect.bottom + 80
+            radixViewport.scrollBy({
+              top: scrollAmount,
+              behavior: 'smooth'
+            })
+          }
+        } else {
+          // fallback: 使用 scrollIntoView
+          element.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'end'
+          })
+        }
+      }, 450)
+    }
+  }, [isFlipped])
 
   const handleConfirmSign = async () => {
     if (!agreed || isSubmitting) return
@@ -187,7 +221,7 @@ export default function SignCard({ message, userInfo, signType, onConfirm, class
             </div>
 
             {/* 确认按钮 */}
-            <div className="px-6 pb-6">
+            <div ref={confirmButtonRef} className="px-6 pb-6">
               <AnimatePresence mode="wait">
                 {isComplete ? (
                   <motion.div

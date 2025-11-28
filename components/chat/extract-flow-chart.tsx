@@ -17,7 +17,8 @@ import {
   FileText, 
   PartyPopper,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  ShieldCheck
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -78,11 +79,12 @@ export default function ExtractFlowChart({
   // 1029: 满足租房提取条件 | 1030: 人脸识别 | 1031: 提交成功
   
   const isAuthCompleted = is_auth
+  const isAccountStatusChecked = is_auth // 账户状态：授权后即检查通过（直接过）
   const isExtractTypeSelected = !!selectedExtractType || phaseNum >= 1005
-  const isMarriageChecked = phaseNum >= 1007 || phaseNum >= 1015 // 已婚/未婚后进入签约
   const isSmsSignCompleted = phaseNum >= 1018 // 进入银行卡签约阶段
   const isBankSignCompleted = phaseNum >= 1021 // 进入后续校验阶段
   const isSigningCompleted = isSmsSignCompleted && isBankSignCompleted
+  const isMarriageChecked = phaseNum >= 1021 // 只有签约完成后才点亮婚姻状态
   const isMultiChildChecked = phaseNum >= 1022 // 非多孩家庭
   const isDepositChecked = phaseNum >= 1024 // 提取/缴纳通过
   const isPropertyChecked = phaseNum >= 1025 // 缴存地无房产
@@ -91,12 +93,14 @@ export default function ExtractFlowChart({
   const isSubmitted = isFinished
 
   // 判断当前激活步骤
+  // 流程顺序：信息授权 → 账户状态 → 提取原因 → 签约状态 → 婚姻状态 → 后续校验
   const getCurrentStep = () => {
     if (!is_auth) return "auth"
+    if (!isAccountStatusChecked) return "account_status"
     if (!isExtractTypeSelected) return "extract_type"
-    if (!isMarriageChecked) return "marriage"
     if (!isSmsSignCompleted) return "sms_sign"
     if (!isBankSignCompleted) return "bank_sign"
+    if (!isMarriageChecked) return "marriage"
     if (!isMultiChildChecked) return "multi_child"
     if (!isDepositChecked) return "deposit"
     if (!isPropertyChecked) return "property"
@@ -129,6 +133,14 @@ export default function ExtractFlowChart({
       subLabel: isAuthCompleted ? "已授权" : "待授权"
     },
     {
+      id: "account_status",
+      label: "账户状态",
+      icon: <ShieldCheck className="h-4 w-4" />,
+      isActive: currentStep === "account_status",
+      isCompleted: isAccountStatusChecked,
+      subLabel: isAccountStatusChecked ? "满足" : undefined // 只有点亮才显示"满足"
+    },
+    {
       id: "extract_type",
       label: "提取原因",
       icon: <Home className="h-4 w-4" />,
@@ -145,14 +157,6 @@ export default function ExtractFlowChart({
         clickable: true,
         onClick: () => onSelectExtractType?.(`我要办理${type}提取`)
       })) : undefined
-    },
-    {
-      id: "marriage",
-      label: "婚姻状态",
-      icon: <Users className="h-4 w-4" />,
-      isActive: currentStep === "marriage",
-      isCompleted: isMarriageChecked || isExtractTypeSelected,
-      subLabel: is_married ? "已婚" : "未婚"
     },
     {
       id: "signing",
@@ -178,6 +182,14 @@ export default function ExtractFlowChart({
           subLabel: isBankSignCompleted ? "已签约" : "待签约"
         }
       ]
+    },
+    {
+      id: "marriage",
+      label: "婚姻状态",
+      icon: <Users className="h-4 w-4" />,
+      isActive: currentStep === "marriage",
+      isCompleted: isMarriageChecked,
+      subLabel: is_married ? "已婚" : "未婚"
     },
     {
       id: "multi_child",

@@ -39,17 +39,19 @@ interface ChatSidebarProps {
   userAttributes?: UserAttributes | null
   selectedExtractType?: string | null
   isFlowFinished?: boolean
+  showFlowChart?: boolean // 是否显示流程图（触发 sms_sign 后才显示）
 }
 
 const USER_AVATAR = "https://img.icons8.com/color/96/user-male-circle--v1.png"
 
 const extractionOptions = [
   { id: "rent", label: "租房提取", icon: Home, message: "我要租房提取" },
-  { id: "commercial_loan", label: "商贷提取", icon: Building2, message: "我要偿还商业贷款提取" },
-  { id: "fund_loan", label: "公积金贷款提取", icon: FileText, message: "我要偿还公积金或组合贷款提取" },
-  { id: "house_purchase", label: "购房提取", icon: Home, message: "我要购房提取" },
-  { id: "resignation", label: "离职提取", icon: LogOut, message: "我要离职提取" },
-  { id: "retirement", label: "退休提取", icon: Timer, message: "我要正常退休提取" },
+  { id: "commercial_loan", label: "偿还商业贷款提取", icon: Building2, message: "我要偿还商业贷款提取" },
+  { id: "fund_loan", label: "偿还公积金贷款提取", icon: FileText, message: "我要偿还公积金贷款提取" },
+  { id: "combined_loan", label: "偿还组合贷款提取", icon: FileText, message: "我要偿还组合贷款提取" },
+  { id: "house_purchase", label: "购房提取（一、二手房）", icon: Home, message: "我要购房提取" },
+  { id: "resignation", label: "离职提取（销户类）", icon: LogOut, message: "我要离职提取" },
+  { id: "retirement", label: "正常退休提取（销户类）", icon: Timer, message: "我要正常退休提取" },
 ]
 
 export default function ChatSidebar({
@@ -67,6 +69,7 @@ export default function ChatSidebar({
   userAttributes = null,
   selectedExtractType = null,
   isFlowFinished = false,
+  showFlowChart = false,
 }: ChatSidebarProps) {
   const router = useRouter()
   const [showExtractionOptions, setShowExtractionOptions] = useState(false)
@@ -204,8 +207,8 @@ export default function ChatSidebar({
                 </div>
               )}
 
-              {/* 流程图 - 当有用户属性时显示 */}
-              {userAttributes && (
+              {/* 流程图 - 只有触发 sms_sign 后才显示 */}
+              {showFlowChart && userAttributes && (
                 <div className="px-3">
                   <ExtractFlowChart
                     userAttributes={userAttributes}

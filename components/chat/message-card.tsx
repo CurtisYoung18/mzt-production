@@ -18,7 +18,7 @@ import SignCard from "./sign-card"
 import FinishCard from "./finish-card"
 
 // 业务卡片类型
-const BUSINESS_CARD_TYPES = ["auth", "sms_sign", "bank_sign", "finish", "gjj_details"]
+const BUSINESS_CARD_TYPES = ["auth", "processing_auth", "sms_sign", "bank_sign", "finish", "gjj_details"]
 
 interface MessageCardProps {
   message: Message
@@ -111,11 +111,7 @@ export default function MessageCard({
     const contentToShow = parsedResponse?.content || message.content
     return (
       <div className="space-y-3">
-      <AccountDetailsCard
-        accountInfo={message.accountInfo}
-          className="w-full max-w-2xl"
-      />
-        {/* Render AI's content summary below the card */}
+        {/* AI 的 content 在最上面 */}
         {contentToShow && (
           <div className="bg-secondary/80 px-4 py-3 rounded-2xl rounded-tl-sm">
             <div className="prose prose-sm dark:prose-invert max-w-none text-foreground leading-relaxed">
@@ -127,6 +123,47 @@ export default function MessageCard({
               </ReactMarkdown>
             </div>
           </div>
+        )}
+        
+        {/* 账户详情卡片在中间 */}
+      <AccountDetailsCard
+        accountInfo={message.accountInfo}
+          className="w-full max-w-2xl"
+        />
+        
+        {/* 可办理的提取业务气泡在最下面（gjj_details 后显示） */}
+        {message.permitExtractTypes && message.permitExtractTypes.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-950/30 dark:to-cyan-950/30 border border-blue-200 dark:border-blue-800 rounded-2xl p-4 max-w-md"
+          >
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center">
+                <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+              </div>
+              <span className="text-sm font-medium text-blue-700 dark:text-blue-300">您可办理以下提取业务：</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {message.permitExtractTypes.map((type, index) => (
+                <motion.button
+                  key={type}
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.4 + index * 0.1 }}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => onSendMessage?.(`我要办理${type}提取`)}
+                  className="px-4 py-2 bg-white dark:bg-gray-800 border border-blue-300 dark:border-blue-700 rounded-full text-sm font-medium text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/50 hover:border-blue-400 transition-all shadow-sm"
+                >
+                  {type}提取
+                </motion.button>
+              ))}
+            </div>
+          </motion.div>
         )}
       </div>
     )
@@ -270,17 +307,29 @@ export default function MessageCard({
         />
       )}
       
-      {/* Business Card - 授权卡片 */}
-      {/* Business Card - 授权卡片 (card_type: "auth") */}
+      {/* Business Card - 授权卡片 (card_type: "auth") - 提取流程授权 */}
       {llmCardType === "auth" && userInfo && onBusinessCardAction && !message.authCompleted && (
         <AuthCard
           userInfo={userInfo}
           onConfirm={() => onBusinessCardAction("auth", "confirm")}
+          isProcessingAuth={false}
+          permitExtractTypes={message.permitExtractTypes}
+          onSelectExtractType={onSendMessage}
         />
       )}
       
-      {/* 授权完成后显示可用的提取类型 */}
-      {message.authCompleted && message.permitExtractTypes && message.permitExtractTypes.length > 0 && (
+      {/* Business Card - 查询授权卡片 (card_type: "processing_auth") - 授权后只显示授权成功 */}
+      {llmCardType === "processing_auth" && userInfo && onBusinessCardAction && (
+        <AuthCard
+          userInfo={userInfo}
+          onConfirm={() => onBusinessCardAction("processing_auth", "confirm")}
+          isProcessingAuth={true}
+          authCompleted={message.authCompleted}
+        />
+      )}
+      
+      {/* 授权完成后显示可用的提取类型 (仅 auth 类型) */}
+      {message.authCompleted && llmCardType === "auth" && message.permitExtractTypes && message.permitExtractTypes.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}

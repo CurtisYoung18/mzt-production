@@ -2,7 +2,9 @@
 // 通用提示卡片类型
 export type LLMAlertCardType = "warning" | "success" | "info" | "error"
 // 业务流程卡片类型
-export type LLMBusinessCardType = "auth" | "sms_sign" | "bank_sign" | "finish" | "gjj_details"
+// processing_auth: 查询公积金时的授权（授权后只显示"授权成功"，不显示提取业务选项）
+// auth: 提取流程中的授权（授权后显示可办理的提取业务）
+export type LLMBusinessCardType = "auth" | "processing_auth" | "sms_sign" | "bank_sign" | "finish" | "gjj_details"
 // 所有卡片类型
 export type LLMCardType = LLMAlertCardType | LLMBusinessCardType | null
 

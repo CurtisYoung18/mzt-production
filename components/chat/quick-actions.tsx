@@ -14,7 +14,8 @@ interface QuickActionsProps {
 const extractionOptions = [
   { id: "rent", label: "租房提取", icon: Home, message: "我要租房提取" },
   { id: "commercial_loan", label: "偿还商业贷款提取", icon: Building2, message: "我要偿还商业贷款提取" },
-  { id: "fund_loan", label: "偿还公积金或组合贷款提取", icon: FileText, message: "我要偿还公积金或组合贷款提取" },
+  { id: "fund_loan", label: "偿还公积金贷款提取", icon: FileText, message: "我要偿还公积金贷款提取" },
+  { id: "combined_loan", label: "偿还组合贷款提取", icon: FileText, message: "我要偿还组合贷款提取" },
   { id: "house_purchase", label: "购房提取（一、二手房）", icon: Home, message: "我要购房提取" },
   { id: "resignation", label: "离职提取（销户类）", icon: LogOut, message: "我要离职提取" },
   { id: "retirement", label: "正常退休提取（销户类）", icon: Timer, message: "我要正常退休提取" },

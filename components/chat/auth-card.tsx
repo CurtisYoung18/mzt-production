@@ -1,8 +1,8 @@
 "use client"
 
-import { useState } from "react"
-import { motion } from "framer-motion"
-import { Info, CheckSquare, Square } from "lucide-react"
+import { useState, useEffect } from "react"
+import { motion, AnimatePresence } from "framer-motion"
+import { Info, CheckSquare, Square, CheckCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { UserBasicInfo } from "@/types/chat"
 
@@ -10,11 +10,35 @@ interface AuthCardProps {
   userInfo: UserBasicInfo
   onConfirm: () => void
   className?: string
+  // 是否是查询公积金的授权（processing_auth），授权后只显示"授权成功"
+  isProcessingAuth?: boolean
+  // 是否已完成授权（用于显示翻转后的卡片）
+  authCompleted?: boolean
+  // 可办理的提取类型（仅 auth 类型显示）
+  permitExtractTypes?: string[]
+  // 点击提取类型时的回调
+  onSelectExtractType?: (type: string) => void
 }
 
-export default function AuthCard({ userInfo, onConfirm, className }: AuthCardProps) {
+export default function AuthCard({ 
+  userInfo, 
+  onConfirm, 
+  className,
+  isProcessingAuth = false,
+  authCompleted = false,
+  permitExtractTypes = [],
+  onSelectExtractType
+}: AuthCardProps) {
   const [agreed, setAgreed] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [showSuccess, setShowSuccess] = useState(authCompleted)
+
+  // 当 authCompleted 变化时更新 showSuccess
+  useEffect(() => {
+    if (authCompleted) {
+      setShowSuccess(true)
+    }
+  }, [authCompleted])
 
   // 获取当前日期
   const today = new Date()
@@ -25,8 +49,70 @@ export default function AuthCard({ userInfo, onConfirm, className }: AuthCardPro
     setIsSubmitting(true)
     await onConfirm()
     setIsSubmitting(false)
+    setShowSuccess(true)
   }
 
+  // 授权成功后的卡片
+  if (showSuccess) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, rotateY: 90 }}
+        animate={{ opacity: 1, rotateY: 0 }}
+        transition={{ duration: 0.4 }}
+        className={cn(
+          "bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-lg overflow-hidden max-w-lg",
+          className
+        )}
+      >
+        <div className="p-6 flex flex-col items-center justify-center min-h-[200px]">
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+          >
+            <CheckCircle className="h-16 w-16 text-green-500 mb-4" />
+          </motion.div>
+          <motion.h3
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="text-xl font-semibold text-gray-900 dark:text-gray-100"
+          >
+            授权成功！
+          </motion.h3>
+          
+          {/* 只有非 processing_auth 类型才显示提取业务选项 */}
+          {!isProcessingAuth && permitExtractTypes.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+              className="mt-6 w-full"
+            >
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-3 text-center">
+                您可办理以下提取业务：
+              </p>
+              <div className="flex flex-wrap gap-2 justify-center">
+                {permitExtractTypes.map((type) => (
+                  <motion.button
+                    key={type}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => onSelectExtractType?.(`我要办理${type}提取`)}
+                    className="px-4 py-2 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full text-sm font-medium hover:bg-blue-100 dark:hover:bg-blue-800/50 transition-colors"
+                  >
+                    {type}提取
+                  </motion.button>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </div>
+      </motion.div>
+    )
+  }
+
+  // 授权表单
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -145,4 +231,3 @@ export default function AuthCard({ userInfo, onConfirm, className }: AuthCardPro
     </motion.div>
   )
 }
-
