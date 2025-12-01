@@ -9,7 +9,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Download, ChevronDown, ChevronUp, Sparkles, Search } from "lucide-react"
-import type { Message, LLMCardType, LLMResponse, UserBasicInfo } from "@/types/chat"
+import type { Message, LLMCardType, LLMResponse, UserBasicInfo, AccountInfo } from "@/types/chat"
 import ThinkingProcess from "./thinking-process"
 import AccountDetailsCard from "./account-details-card"
 import LLMCard from "./llm-card"
@@ -31,11 +31,52 @@ interface MessageCardProps {
   onSendMessage?: (content: string) => void
 }
 
-// 解析 LLM 返回的 JSON 格式内容
+// 从字符串中提取 JSON 对象
+function extractJsonFromString(content: string): { json: Record<string, unknown>; startIndex: number; endIndex: number } | null {
+  if (!content) return null
+  
+  // 查找所有可能的 JSON 起始位置
+  let braceCount = 0
+  let jsonStart = -1
+  
+  for (let i = 0; i < content.length; i++) {
+    const char = content[i]
+    
+    if (char === '{') {
+      if (braceCount === 0) {
+        jsonStart = i
+      }
+      braceCount++
+    } else if (char === '}') {
+      braceCount--
+      if (braceCount === 0 && jsonStart !== -1) {
+        // 尝试解析从 jsonStart 到当前位置的字符串
+        const potentialJson = content.substring(jsonStart, i + 1)
+        try {
+          const parsed = JSON.parse(potentialJson)
+          if (typeof parsed === 'object' && parsed !== null) {
+            return {
+              json: parsed,
+              startIndex: jsonStart,
+              endIndex: i + 1
+            }
+          }
+        } catch {
+          // 继续查找下一个可能的 JSON
+          jsonStart = -1
+        }
+      }
+    }
+  }
+  
+  return null
+}
+
+// 解析 LLM 返回的 JSON 格式内容（支持从混合文本中提取 JSON）
 function parseLLMResponse(content: string): LLMResponse | null {
   if (!content) return null
   
-  // 尝试解析 JSON 格式
+  // 首先尝试整体解析（如果整个内容就是 JSON）
   const trimmed = content.trim()
   if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
     try {
@@ -48,7 +89,55 @@ function parseLLMResponse(content: string): LLMResponse | null {
         }
       }
     } catch {
-      // 不是有效的 JSON，返回 null
+      // 继续尝试提取
+    }
+  }
+  
+  // 尝试从混合文本中提取 JSON
+  const extracted = extractJsonFromString(content)
+  if (extracted && 'content' in extracted.json) {
+    return {
+      card_type: (extracted.json.card_type as LLMCardType) || null,
+      card_message: (extracted.json.card_message as string) || '',
+      content: (extracted.json.content as string) || ''
+    }
+  }
+  
+  return null
+}
+
+// 从 card_message 中解析账户信息（gjj_details 场景）
+function parseAccountInfoFromCardMessage(cardMessage: string): AccountInfo | null {
+  if (!cardMessage) return null
+  
+  // card_message 格式: "用户的账号详细信息：{...JSON...}"
+  const extracted = extractJsonFromString(cardMessage)
+  if (extracted && extracted.json) {
+    const info = extracted.json
+    // 验证必要字段存在
+    if ('personalAccount' in info) {
+      return {
+        personalAccount: String(info.personalAccount || ''),
+        openDate: String(info.openDate || ''),
+        paidUntil: String(info.paidUntil || ''),
+        idType: String(info.idType || ''),
+        idNumber: String(info.idNumber || ''),
+        residence: String(info.residence || ''),
+        maritalStatus: String(info.maritalStatus || ''),
+        phone: String(info.phone || ''),
+        bankName: String(info.bankName || ''),
+        bankAccount: String(info.bankAccount || ''),
+        accountType: String(info.accountType || ''),
+        accountStatus: String(info.accountStatus || ''),
+        sealDate: info.sealDate ? String(info.sealDate) : undefined,
+        depositBase: Number(info.depositBase) || 0,
+        personalRate: String(info.personalRate || ''),
+        personalAmount: Number(info.personalAmount) || 0,
+        companyRate: String(info.companyRate || ''),
+        companyAmount: Number(info.companyAmount) || 0,
+        companyName: String(info.companyName || ''),
+        companyAccount: String(info.companyAccount || ''),
+      } as AccountInfo
     }
   }
   
@@ -83,9 +172,20 @@ export default function MessageCard({
   
   // 检查是否为业务卡片类型
   const isBusinessCard = parsedResponse?.card_type && BUSINESS_CARD_TYPES.includes(parsedResponse.card_type)
+  
+  // 从 card_message 解析账户信息（用于 gjj_details 卡片）
+  const parsedAccountInfo = useMemo(() => {
+    if (parsedResponse?.card_type === 'gjj_details' && parsedResponse.card_message) {
+      return parseAccountInfoFromCardMessage(parsedResponse.card_message)
+    }
+    return null
+  }, [parsedResponse?.card_type, parsedResponse?.card_message])
+  
+  // 使用 message.accountInfo 或从 card_message 解析的账户信息
+  const accountInfoToUse = message.accountInfo || parsedAccountInfo
 
   // Show querying animation for data queries (e.g., account info)
-  if (message.isQuerying && !message.accountInfo && !message.content) {
+  if (message.isQuerying && !accountInfoToUse && !message.content) {
     return (
       <div className="bg-gradient-to-r from-blue-50/80 to-cyan-50/80 dark:from-blue-950/30 dark:to-cyan-950/30 border border-blue-200/60 dark:border-blue-800/50 px-4 py-3 rounded-2xl rounded-tl-sm">
         <div className="flex items-center gap-2.5">
@@ -106,8 +206,8 @@ export default function MessageCard({
     )
   }
 
-  // Check if message has account info - render card and content together
-  if (message.accountInfo) {
+  // Check if message has account info (from message or parsed from card_message) - render card and content together
+  if (accountInfoToUse) {
     const contentToShow = parsedResponse?.content || message.content
     return (
       <div className="space-y-3">
@@ -127,7 +227,7 @@ export default function MessageCard({
         
         {/* 账户详情卡片在中间 */}
       <AccountDetailsCard
-        accountInfo={message.accountInfo}
+        accountInfo={accountInfoToUse}
           className="w-full max-w-2xl"
         />
         
