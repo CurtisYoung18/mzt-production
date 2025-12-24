@@ -92,6 +92,58 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
   const [connectionError, setConnectionError] = useState<string | null>(null)
   const [titleGenerated, setTitleGenerated] = useState(false) // Track if title has been generated for current session
   const titleGenerationAttempted = useRef(false) // Prevent multiple title generation attempts
+  const thinkingPollingRef = useRef<NodeJS.Timeout | null>(null) // 轮询定时器引用
+
+  // 轮询获取思考内容
+  useEffect(() => {
+    // 查找正在思考的消息
+    const thinkingMessage = messages.find(m => m.isThinking && m.role === "assistant")
+    
+    if (thinkingMessage) {
+      console.log(`[ThinkingPolling] 开始轮询 - messageId: ${thinkingMessage.id}`)
+      
+      // 启动轮询
+      const pollThinking = async () => {
+        try {
+          const response = await fetch(`/api/chat/thinking/${thinkingMessage.id}`)
+          if (response.ok) {
+            const data = await response.json()
+            if (data.found && data.content) {
+              console.log(`[ThinkingPolling] 获取到思考内容 - length: ${data.content.length}`)
+              // 更新消息的 thinking 字段
+              setMessages(prev => prev.map(m => 
+                m.id === thinkingMessage.id 
+                  ? { ...m, thinking: data.content }
+                  : m
+              ))
+            }
+          }
+        } catch (error) {
+          console.error("[ThinkingPolling] 轮询失败:", error)
+        }
+      }
+      
+      // 立即执行一次
+      pollThinking()
+      
+      // 每 500ms 轮询一次
+      thinkingPollingRef.current = setInterval(pollThinking, 500)
+      
+      return () => {
+        if (thinkingPollingRef.current) {
+          console.log(`[ThinkingPolling] 停止轮询 - messageId: ${thinkingMessage.id}`)
+          clearInterval(thinkingPollingRef.current)
+          thinkingPollingRef.current = null
+        }
+      }
+    } else {
+      // 没有思考中的消息，清理定时器
+      if (thinkingPollingRef.current) {
+        clearInterval(thinkingPollingRef.current)
+        thinkingPollingRef.current = null
+      }
+    }
+  }, [messages])
 
   // Function to generate session title using AI
   const generateSessionTitle = useCallback(async (messageList: Message[], sessionId: string) => {
@@ -432,6 +484,23 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
       if (!response.ok) {
         const error = await response.json()
         throw new Error(error.error || "Failed to send message")
+      }
+
+      // 注册 conversationId -> messageId 映射，以便后端可以通过 conversationId 更新思考内容
+      try {
+        await fetch("/api/chat/thinking/update", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            messageId: aiMessageId,
+            conversationId: convId,
+            content: "", // 初始为空
+            registerMapping: true,
+          }),
+        })
+        console.log(`[ThinkingPolling] 注册映射 - conversationId: ${convId} -> messageId: ${aiMessageId}`)
+      } catch (error) {
+        console.error("[ThinkingPolling] 注册映射失败:", error)
       }
 
       // Handle streaming response with real-time thinking parsing
