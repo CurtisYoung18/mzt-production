@@ -305,9 +305,7 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
   // 获取默认成功消息
   const getDefaultSuccessMessage = (cardType: string): string => {
     const messages: Record<string, string> = {
-      "auth": "我已完成授权，请继续",
       "user_unauth": "我已完成授权，请继续",
-      "processing_auth": "我已完成授权，请继续",
       "sms_sign": "我已完成手机号签约，请继续",
       "mate_sms": "配偶已完成手机号签约，请继续",
       "bank_sign": "我已完成银行卡签约，请继续",

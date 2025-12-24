@@ -24,10 +24,6 @@ export type LLMBusinessCardType =
   | "bank_sign"        // 本人银行卡签约
   | "finish"           // 完成/满足提取条件
   | "history_list"     // 提取记录
-  // 兼容旧类型
-  | "auth"             // 授权（兼容）
-  | "processing_auth"  // 查询授权（兼容）
-  | "gjj_details"      // 公积金详情（兼容）
 
 // 所有卡片类型
 export type LLMCardType = LLMAlertCardType | LLMBusinessCardType | null

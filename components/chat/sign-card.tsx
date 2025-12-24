@@ -6,34 +6,86 @@ import { Phone, CreditCard, CheckCircle, Loader2, ArrowRight } from "lucide-reac
 import { cn } from "@/lib/utils"
 import type { UserBasicInfo } from "@/types/chat"
 
+// 预填信息类型
+interface PrefillInfo {
+  name: string
+  idNumber: string
+  phone: string
+  // 配偶信息
+  spouseName?: string
+  spouseIdNumber?: string
+  spousePhone?: string
+}
+
 interface SignCardProps {
   message: string
   userInfo: UserBasicInfo
+  userId: string // 用于调用 workflow API
   signType: "phone" | "bank" // 明确指定签约类型
   onConfirm: () => void
   className?: string
   isSpouse?: boolean // 是否是配偶签约
 }
 
-// 判断是手机签约还是银行卡签约（备用，现在由 signType prop 直接指定）
-function getSignType(message: string): "phone" | "bank" {
-  if (message.includes("手机") || message.includes("电话")) {
-    return "phone"
-  }
-  return "bank"
-}
-
-export default function SignCard({ message, userInfo, signType, onConfirm, className, isSpouse = false }: SignCardProps) {
+export default function SignCard({ message, userInfo, userId, signType, onConfirm, className, isSpouse = false }: SignCardProps) {
   const [isFlipped, setIsFlipped] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isComplete, setIsComplete] = useState(false)
   const [agreed, setAgreed] = useState(false)
+  const [isLoadingPrefill, setIsLoadingPrefill] = useState(false)
+  const [prefillInfo, setPrefillInfo] = useState<PrefillInfo | null>(null)
   const confirmButtonRef = useRef<HTMLDivElement>(null)
 
   const isPhone = signType === "phone"
   const personLabel = isSpouse ? "配偶" : "本人"
 
-  const handleGoSign = () => {
+  // 调用 workflow type 100 获取预填信息
+  const fetchPrefillInfo = async () => {
+    setIsLoadingPrefill(true)
+    try {
+      const response = await fetch("/api/workflow", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cardType: "prefill_info", // 使用特殊的 cardType 标识获取预填信息
+          userId: userId,
+          type: 100, // 个人与配偶信息查询
+        }),
+      })
+
+      const result = await response.json()
+      console.log("[SignCard] 预填信息获取结果:", result)
+
+      if (result.success && result.data) {
+        // 解析返回的数据
+        let data = result.data
+        if (typeof data === 'string') {
+          try {
+            data = JSON.parse(data)
+          } catch {
+            console.error("[SignCard] 解析预填数据失败")
+          }
+        }
+
+        setPrefillInfo({
+          name: data.xingming || data.name || userInfo.name,
+          idNumber: data.zjhm || data.idNumber || userInfo.idNumber,
+          phone: data.sjhm || data.phone || userInfo.phone,
+          spouseName: data.poxm || '',
+          spouseIdNumber: data.pozjhm || '',
+          spousePhone: data.podh || '',
+        })
+      }
+    } catch (error) {
+      console.error("[SignCard] 获取预填信息失败:", error)
+    } finally {
+      setIsLoadingPrefill(false)
+    }
+  }
+
+  const handleGoSign = async () => {
+    // 先获取预填信息，再翻转卡片
+    await fetchPrefillInfo()
     setIsFlipped(true)
   }
 
@@ -85,6 +137,19 @@ export default function SignCard({ message, userInfo, signType, onConfirm, class
     }, 1000)
   }
 
+  // 获取要显示的信息（优先使用预填信息）
+  const displayInfo = {
+    name: isSpouse 
+      ? (prefillInfo?.spouseName || userInfo.name)
+      : (prefillInfo?.name || userInfo.name),
+    idNumber: isSpouse
+      ? (prefillInfo?.spouseIdNumber || userInfo.idNumber)
+      : (prefillInfo?.idNumber || userInfo.idNumber),
+    phone: isSpouse
+      ? (prefillInfo?.spousePhone || userInfo.phone)
+      : (prefillInfo?.phone || userInfo.phone),
+  }
+
   return (
     <div className={cn("perspective-1000", className)} style={{ perspective: "1000px" }}>
       <AnimatePresence mode="wait">
@@ -118,10 +183,20 @@ export default function SignCard({ message, userInfo, signType, onConfirm, class
                 whileHover={{ scale: 1.02, boxShadow: "0 4px 20px rgba(234, 179, 8, 0.3)" }}
                 whileTap={{ scale: 0.98 }}
                 onClick={handleGoSign}
-                className="w-full py-3 rounded-xl border-2 border-amber-400 text-amber-600 dark:text-amber-400 font-medium transition-all hover:bg-amber-50 dark:hover:bg-amber-900/20 flex items-center justify-center gap-2"
+                disabled={isLoadingPrefill}
+                className="w-full py-3 rounded-xl border-2 border-amber-400 text-amber-600 dark:text-amber-400 font-medium transition-all hover:bg-amber-50 dark:hover:bg-amber-900/20 flex items-center justify-center gap-2 disabled:opacity-50"
               >
-                去签约
-                <ArrowRight className="h-4 w-4" />
+                {isLoadingPrefill ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    加载中...
+                  </>
+                ) : (
+                  <>
+                    去签约
+                    <ArrowRight className="h-4 w-4" />
+                  </>
+                )}
               </motion.button>
             </div>
           </motion.div>
@@ -174,7 +249,9 @@ export default function SignCard({ message, userInfo, signType, onConfirm, class
                   className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl"
                 >
                   <span className="text-sm text-gray-500 dark:text-gray-400">姓名</span>
-                  <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{userInfo.name}</span>
+                  <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                    {displayInfo.name}
+                  </span>
                 </motion.div>
                 
                 <motion.div
@@ -184,7 +261,9 @@ export default function SignCard({ message, userInfo, signType, onConfirm, class
                   className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl"
                 >
                   <span className="text-sm text-gray-500 dark:text-gray-400">证件号码</span>
-                  <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{userInfo.idNumber}</span>
+                  <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                    {displayInfo.idNumber}
+                  </span>
                 </motion.div>
                 
                 <motion.div
@@ -197,7 +276,7 @@ export default function SignCard({ message, userInfo, signType, onConfirm, class
                     {isPhone ? "手机号码" : "银行卡号"}
                   </span>
                   <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                    {isPhone ? userInfo.phone : "6214 **** **** 1234"}
+                    {isPhone ? displayInfo.phone : "6214 **** **** 1234"}
                   </span>
                 </motion.div>
               </div>
@@ -271,4 +350,3 @@ export default function SignCard({ message, userInfo, signType, onConfirm, class
     </div>
   )
 }
-

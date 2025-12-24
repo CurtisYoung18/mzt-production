@@ -23,16 +23,12 @@ const BUSINESS_CARD_TYPES = [
   "account_info",     // 公积金账户信息
   "pf_list",          // 公积金类型选择
   "mate_sms",         // 配偶手机签约
-  "mate_sign",        // 配偶授权
+  "mate_sign"  ,      // 配偶授权
   "children_select",  // 多孩家庭选择
   "sms_sign",         // 本人手机签约
   "bank_sign",        // 本人银行卡签约
   "finish",           // 完成
   "history_list",     // 提取记录
-  // 兼容旧类型
-  "auth",
-  "processing_auth",
-  "gjj_details",
 ]
 
 interface MessageCardProps {
@@ -237,7 +233,7 @@ function formatYearMonth(ymStr: string): string {
   return ymStr
 }
 
-// 从 card_message 中解析账户信息（account_info / gjj_details 场景）
+// 从 card_message 中解析账户信息（account_info 场景）
 function parseAccountInfoFromCardMessage(cardMessage: string): AccountInfo | null {
   if (!cardMessage) return null
   
@@ -367,9 +363,9 @@ export default function MessageCard({
   // 检查是否为业务卡片类型
   const isBusinessCard = parsedResponse?.card_type && BUSINESS_CARD_TYPES.includes(parsedResponse.card_type)
   
-  // 从 card_message 解析账户信息（用于 gjj_details / account_info 卡片）
+  // 从 card_message 解析账户信息（用于 account_info 卡片）
   const parsedAccountInfo = useMemo(() => {
-    if ((parsedResponse?.card_type === 'gjj_details' || parsedResponse?.card_type === 'account_info') && parsedResponse.card_message) {
+    if (parsedResponse?.card_type === 'account_info' && parsedResponse.card_message) {
       return parseAccountInfoFromCardMessage(parsedResponse.card_message)
     }
     return null
@@ -425,7 +421,7 @@ export default function MessageCard({
           className="w-full max-w-2xl"
         />
         
-        {/* 可办理的提取业务气泡在最下面（gjj_details 后显示） */}
+        {/* 可办理的提取业务气泡在最下面（account_info 后显示） */}
         {message.permitExtractTypes && message.permitExtractTypes.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
@@ -619,66 +615,12 @@ export default function MessageCard({
         </motion.div>
       )}
       
-      {/* Business Card - 授权卡片 (card_type: "auth") - 提取流程授权 */}
-      {llmCardType === "auth" && userInfo && onBusinessCardAction && !message.authCompleted && (
-        <AuthCard
-          userInfo={userInfo}
-          onConfirm={() => onBusinessCardAction("auth", "confirm")}
-          isProcessingAuth={false}
-          permitExtractTypes={message.permitExtractTypes}
-          onSelectExtractType={onSendMessage}
-        />
-      )}
-      
-      {/* Business Card - 查询授权卡片 (card_type: "processing_auth") - 授权后只显示授权成功 */}
-      {llmCardType === "processing_auth" && userInfo && onBusinessCardAction && (
-        <AuthCard
-          userInfo={userInfo}
-          onConfirm={() => onBusinessCardAction("processing_auth", "confirm")}
-          isProcessingAuth={true}
-          authCompleted={message.authCompleted}
-        />
-      )}
-      
-      {/* 授权完成后显示可用的提取类型 (仅 auth 类型) */}
-      {message.authCompleted && llmCardType === "auth" && message.permitExtractTypes && message.permitExtractTypes.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 border border-green-200 dark:border-green-800 rounded-2xl p-4 max-w-md"
-        >
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center">
-              <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-            <span className="text-sm font-medium text-green-700 dark:text-green-300">授权成功！您可办理以下提取业务：</span>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {message.permitExtractTypes.map((type, index) => (
-              <motion.button
-                key={type}
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: index * 0.1 }}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => onSendMessage?.(`我要办理${type}提取`)}
-                className="px-4 py-2 bg-white dark:bg-gray-800 border border-green-300 dark:border-green-700 rounded-full text-sm font-medium text-green-700 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-900/50 hover:border-green-400 transition-all shadow-sm"
-              >
-                {type}提取
-              </motion.button>
-            ))}
-          </div>
-        </motion.div>
-      )}
-      
       {/* Business Card - 手机签约卡片 (card_type: "sms_sign") */}
       {llmCardType === "sms_sign" && llmCardMessage && userInfo && onBusinessCardAction && (
         <SignCard
           message={llmCardMessage}
           userInfo={userInfo}
+          userId={userId}
           signType="phone"
           onConfirm={() => onBusinessCardAction("sms_sign", "confirm")}
         />
@@ -689,6 +631,7 @@ export default function MessageCard({
         <SignCard
           message={llmCardMessage}
           userInfo={userInfo}
+          userId={userId}
           signType="bank"
           onConfirm={() => onBusinessCardAction("bank_sign", "confirm")}
         />
@@ -721,6 +664,7 @@ export default function MessageCard({
         <SignCard
           message={llmCardMessage}
           userInfo={userInfo}
+          userId={userId}
           signType="phone"
           isSpouse={true}
           onConfirm={() => onBusinessCardAction("mate_sms", "confirm")}
@@ -781,17 +725,61 @@ export default function MessageCard({
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950/30 dark:to-pink-950/30 border border-purple-200 dark:border-purple-800 rounded-2xl p-4 max-w-md"
+          className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-lg overflow-hidden max-w-sm"
         >
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-6 h-6 rounded-full bg-purple-500 flex items-center justify-center">
-              <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
+          {/* 顶部渐变区域 - 铃铛图标 */}
+          <div className="bg-gradient-to-br from-orange-100 via-yellow-50 to-green-50 dark:from-orange-900/30 dark:via-yellow-900/20 dark:to-green-900/20 px-6 pt-6 pb-4 flex flex-col items-center">
+            {/* 铃铛图标带动画效果 */}
+            <div className="relative mb-3">
+              <div className="w-16 h-16 flex items-center justify-center">
+                <svg className="w-12 h-12 text-amber-500" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2zm-2 1H8v-6c0-2.48 1.51-4.5 4-4.5s4 2.02 4 4.5v6z"/>
+                </svg>
+              </div>
+              {/* 铃铛旁边的波纹效果 */}
+              <div className="absolute -right-1 -top-1">
+                <span className="flex h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-cyan-500"></span>
+                </span>
+              </div>
+              <div className="absolute -left-1 top-2">
+                <span className="flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" style={{animationDelay: '0.5s'}}></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-400"></span>
+                </span>
+              </div>
             </div>
-            <span className="text-sm font-medium text-purple-700 dark:text-purple-300">多孩家庭提示</span>
+            {/* 标题 */}
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">温馨提示</h3>
           </div>
-          <p className="text-sm text-purple-600 dark:text-purple-400">{llmCardMessage}</p>
+          
+          {/* 内容区域 */}
+          <div className="px-6 py-4">
+            <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed text-center">
+              {llmCardMessage}
+            </p>
+          </div>
+          
+          {/* 按钮区域 */}
+          <div className="px-6 pb-6 flex gap-3">
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => onSendMessage?.("取消办理")}
+              className="flex-1 py-3 rounded-full border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 font-medium text-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+            >
+              取消办理
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => onSendMessage?.("继续办理")}
+              className="flex-1 py-3 rounded-full bg-blue-500 hover:bg-blue-600 text-white font-medium text-sm transition-colors shadow-md"
+            >
+              继续办理
+            </motion.button>
+          </div>
         </motion.div>
       )}
       
