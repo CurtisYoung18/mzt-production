@@ -4,7 +4,8 @@ export type LLMAlertCardType = "warning" | "success" | "info" | "error"
 // 业务流程卡片类型
 // processing_auth: 查询公积金时的授权（授权后只显示"授权成功"，不显示提取业务选项）
 // auth: 提取流程中的授权（授权后显示可办理的提取业务）
-export type LLMBusinessCardType = "auth" | "processing_auth" | "sms_sign" | "bank_sign" | "finish" | "gjj_details"
+// account_info: 公积金账户信息查询结果
+export type LLMBusinessCardType = "auth" | "processing_auth" | "sms_sign" | "bank_sign" | "finish" | "gjj_details" | "account_info"
 // 所有卡片类型
 export type LLMCardType = LLMAlertCardType | LLMBusinessCardType | null
 
@@ -62,6 +63,14 @@ export interface AccountInfo {
   companyAmount: number
   companyName: string
   companyAccount: string
+  // 扩展字段（从 workflow API 获取的额外信息）
+  name?: string              // 姓名
+  totalBalance?: number      // 账户余额
+  spouseName?: string        // 配偶姓名
+  spouseIdNumber?: string    // 配偶证件号码
+  address?: string           // 家庭住址
+  totalInterest?: number     // 累计利息金额
+  monthlyDeposit?: number    // 月缴存额（个人+单位）
 }
 
 export interface CardData {

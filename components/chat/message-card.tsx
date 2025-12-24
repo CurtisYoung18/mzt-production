@@ -18,7 +18,7 @@ import SignCard from "./sign-card"
 import FinishCard from "./finish-card"
 
 // 业务卡片类型
-const BUSINESS_CARD_TYPES = ["auth", "processing_auth", "sms_sign", "bank_sign", "finish", "gjj_details"]
+const BUSINESS_CARD_TYPES = ["auth", "processing_auth", "sms_sign", "bank_sign", "finish", "gjj_details", "account_info"]
 
 interface MessageCardProps {
   message: Message
@@ -106,15 +106,128 @@ function parseLLMResponse(content: string): LLMResponse | null {
   return null
 }
 
-// 从 card_message 中解析账户信息（gjj_details 场景）
+// 中文字段名到英文字段名的映射
+const ACCOUNT_FIELD_MAP: Record<string, string> = {
+  // 个人基础信息
+  "个人账号": "personalAccount",
+  "grzh": "personalAccount",
+  "开户日期": "openDate",
+  "khrq": "openDate",
+  "缴至年月": "paidUntil",
+  "JZNY": "paidUntil",
+  "证件类型": "idType",
+  "zjlx": "idType",
+  "证件号码": "idNumber",
+  "zjhm": "idNumber",
+  "现户籍": "residence",
+  "xhj": "residence",
+  "婚姻状况": "maritalStatus",
+  "hyzk": "maritalStatus",
+  "手机号码": "phone",
+  "sjhm": "phone",
+  "受托银行名称": "bankName",
+  "styhmc": "bankName",
+  "银行卡号": "bankAccount",
+  "yhzh": "bankAccount",
+  // 公积金缴存信息
+  "账户类型": "accountType",
+  "zhlx": "accountType",
+  "个人账户状态": "accountStatus",
+  "grzhzt": "accountStatus",
+  "封存日期": "sealDate",
+  "fcrq": "sealDate",
+  "个人缴存基数": "depositBase",
+  "grjcjs": "depositBase",
+  "个人缴存比例": "personalRate",
+  "grjcbl": "personalRate",
+  "个人月缴存额": "personalAmount",
+  "gryjce": "personalAmount",
+  "单位缴存比例": "companyRate",
+  "dwjcbl": "companyRate",
+  "单位月缴存额": "companyAmount",
+  "dwyjce": "companyAmount",
+  // 单位信息
+  "单位名称": "companyName",
+  "dwmc": "companyName",
+  "单位账号": "companyAccount",
+  "dwzh": "companyAccount",
+  // 其他信息（用于显示）
+  "姓名": "name",
+  "xingming": "name",
+  "账户余额": "totalBalance",
+  "zhye": "totalBalance",
+  "配偶姓名": "spouseName",
+  "poxm": "spouseName",
+  "配偶证件号码": "spouseIdNumber",
+  "pozjhm": "spouseIdNumber",
+  "家庭住址": "address",
+  "jtzz": "address",
+  "累计利息金额": "totalInterest",
+  "ljlxje": "totalInterest",
+  "封存状态": "sealStatus",
+  "fczt": "sealStatus",
+  "冻结状态": "freezeStatus",
+  "djzt": "freezeStatus",
+}
+
+// 证件类型代码映射
+const ID_TYPE_MAP: Record<string, string> = {
+  "01": "居民身份证",
+  "02": "军官证",
+  "03": "护照",
+  "04": "港澳居民来往内地通行证",
+  "05": "台湾居民来往大陆通行证",
+  "06": "外国人永久居留证",
+}
+
+// 账户状态代码映射
+const ACCOUNT_STATUS_MAP: Record<string, string> = {
+  "01": "正常",
+  "02": "封存",
+  "03": "冻结",
+  "04": "销户",
+}
+
+// 婚姻状况代码映射
+const MARITAL_STATUS_MAP: Record<string, string> = {
+  "10": "未婚",
+  "20": "已婚",
+  "21": "初婚",
+  "22": "再婚",
+  "30": "丧偶",
+  "40": "离婚",
+  "90": "其他",
+}
+
+// 格式化日期：20020404000000 -> 2002-04-04
+function formatDate(dateStr: string): string {
+  if (!dateStr) return ''
+  // 处理格式: 20020404000000 或 20020404
+  const cleaned = dateStr.replace(/\D/g, '')
+  if (cleaned.length >= 8) {
+    return `${cleaned.slice(0, 4)}-${cleaned.slice(4, 6)}-${cleaned.slice(6, 8)}`
+  }
+  return dateStr
+}
+
+// 格式化缴至年月：200405 -> 2004-05
+function formatYearMonth(ymStr: string): string {
+  if (!ymStr) return ''
+  const cleaned = ymStr.replace(/\D/g, '')
+  if (cleaned.length >= 6) {
+    return `${cleaned.slice(0, 4)}-${cleaned.slice(4, 6)}`
+  }
+  return ymStr
+}
+
+// 从 card_message 中解析账户信息（account_info / gjj_details 场景）
 function parseAccountInfoFromCardMessage(cardMessage: string): AccountInfo | null {
   if (!cardMessage) return null
   
-  // card_message 格式: "用户的账号详细信息：{...JSON...}"
+  // 先尝试 JSON 格式（旧格式兼容）
   const extracted = extractJsonFromString(cardMessage)
   if (extracted && extracted.json) {
     const info = extracted.json
-    // 验证必要字段存在
     if ('personalAccount' in info) {
       return {
         personalAccount: String(info.personalAccount || ''),
@@ -139,6 +252,69 @@ function parseAccountInfoFromCardMessage(cardMessage: string): AccountInfo | nul
         companyAccount: String(info.companyAccount || ''),
       } as AccountInfo
     }
+  }
+  
+  // 解析中文字段格式：字段名：值\n字段名：值\n...
+  const fields: Record<string, string> = {}
+  const lines = cardMessage.split('\n')
+  
+  for (const line of lines) {
+    const colonIndex = line.indexOf('：')
+    if (colonIndex > 0) {
+      const key = line.substring(0, colonIndex).trim()
+      const value = line.substring(colonIndex + 1).trim()
+      
+      // 查找映射的英文字段名
+      const englishKey = ACCOUNT_FIELD_MAP[key]
+      if (englishKey) {
+        fields[englishKey] = value
+      }
+    }
+  }
+  
+  // 如果解析到了足够的字段，构建 AccountInfo
+  if (Object.keys(fields).length > 0) {
+    // 转换代码为可读文本
+    const idType = fields.idType ? (ID_TYPE_MAP[fields.idType] || fields.idType) : '身份证'
+    const accountStatus = fields.accountStatus ? (ACCOUNT_STATUS_MAP[fields.accountStatus] || fields.accountStatus) : ''
+    const maritalStatus = fields.maritalStatus ? (MARITAL_STATUS_MAP[fields.maritalStatus] || fields.maritalStatus) : ''
+    
+    // 解析账户余额
+    const totalBalance = parseFloat(fields.totalBalance || '0') || 0
+    const totalInterest = parseFloat(fields.totalInterest || '0') || 0
+    const personalAmount = parseFloat(fields.personalAmount || '0') || 0
+    const companyAmount = parseFloat(fields.companyAmount || '0') || 0
+    
+    return {
+      personalAccount: fields.personalAccount || '',
+      openDate: formatDate(fields.openDate || ''),
+      paidUntil: formatYearMonth(fields.paidUntil || ''),
+      idType: idType,
+      idNumber: fields.idNumber || '',
+      residence: fields.residence === '1' ? '本地' : (fields.residence || ''),
+      maritalStatus: maritalStatus,
+      phone: fields.phone || '',
+      bankName: fields.bankName || '',
+      bankAccount: fields.bankAccount || '',
+      accountType: fields.accountType === '01' ? '公积金账户' : (fields.accountType || '公积金账户'),
+      accountStatus: accountStatus,
+      sealDate: formatDate(fields.sealDate || ''),
+      depositBase: parseFloat(fields.depositBase || '0') || 0,
+      personalRate: fields.personalRate ? `${fields.personalRate}%` : '',
+      personalAmount: personalAmount,
+      companyRate: fields.companyRate ? `${fields.companyRate}%` : '',
+      companyAmount: companyAmount,
+      companyName: fields.companyName || '',
+      companyAccount: fields.companyAccount || '',
+      // 扩展字段
+      name: fields.name || '',
+      totalBalance: totalBalance,
+      spouseName: fields.spouseName || '',
+      spouseIdNumber: fields.spouseIdNumber || '',
+      address: fields.address || '',
+      totalInterest: totalInterest,
+      monthlyDeposit: personalAmount + companyAmount,
+    } as AccountInfo
   }
   
   return null
@@ -173,9 +349,9 @@ export default function MessageCard({
   // 检查是否为业务卡片类型
   const isBusinessCard = parsedResponse?.card_type && BUSINESS_CARD_TYPES.includes(parsedResponse.card_type)
   
-  // 从 card_message 解析账户信息（用于 gjj_details 卡片）
+  // 从 card_message 解析账户信息（用于 gjj_details / account_info 卡片）
   const parsedAccountInfo = useMemo(() => {
-    if (parsedResponse?.card_type === 'gjj_details' && parsedResponse.card_message) {
+    if ((parsedResponse?.card_type === 'gjj_details' || parsedResponse?.card_type === 'account_info') && parsedResponse.card_message) {
       return parseAccountInfoFromCardMessage(parsedResponse.card_message)
     }
     return null
