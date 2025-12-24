@@ -255,10 +255,16 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
     }
 
   // 处理业务卡片操作 - 调用 Workflow API
-  const handleBusinessCardAction = async (cardType: string, action: string, _extraData?: { message?: string }) => {
+  const handleBusinessCardAction = async (cardType: string, action: string, extraData?: { message?: string; userId?: string; code?: string; mobile?: string }) => {
     if (action !== "confirm") return
     
     try {
+      // 构建额外的 input 参数（用于手机签约等场景）
+      const extraInput: Record<string, unknown> = {}
+      if (extraData?.userId) extraInput.userId = extraData.userId
+      if (extraData?.code) extraInput.code = extraData.code
+      if (extraData?.mobile) extraInput.mobile = extraData.mobile
+      
       // 调用 Workflow API
       const workflowResponse = await fetch("/api/workflow", {
         method: "POST",
@@ -266,6 +272,7 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
         body: JSON.stringify({
           cardType,
           userId: user.userId,
+          extraInput: Object.keys(extraInput).length > 0 ? extraInput : undefined,
         }),
       })
 
@@ -327,6 +334,12 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
   // 结束对话并评分
   const handleEndChat = (_rating: number) => {
     // TODO: 发送评分到后端
+  }
+
+  // 提交成功回调（当 workflow 返回 is_eligible = true 时调用）
+  const handleSubmitSuccess = () => {
+    console.log("[ChatLayout] 提取提交成功，is_eligible = true")
+    // 可以在这里添加后续逻辑，如刷新状态等
   }
 
   const handleSendMessage = async (content: string, attachments?: File[]) => {
@@ -772,6 +785,7 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
         onViewRecords={handleViewRecords}
         onContinueChat={handleContinueChat}
         onEndChat={handleEndChat}
+        onSubmitSuccess={handleSubmitSuccess}
       />
     </div>
   )

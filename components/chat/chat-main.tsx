@@ -27,6 +27,7 @@ interface ChatMainProps {
   onViewRecords?: () => void
   onContinueChat?: () => void
   onEndChat?: (rating: number) => void
+  onSubmitSuccess?: () => void
 }
 
 const ASSISTANT_AVATAR = "/images/icon.jpeg"
@@ -48,6 +49,7 @@ export default function ChatMain({
   onViewRecords,
   onContinueChat,
   onEndChat,
+  onSubmitSuccess,
 }: ChatMainProps) {
   const [input, setInput] = useState("")
   const [isFocused, setIsFocused] = useState(false)
@@ -229,6 +231,7 @@ export default function ChatMain({
                       onContinueChat={onContinueChat}
                       onEndChat={onEndChat}
                       onSendMessage={(content) => onSendMessage(content)}
+                      onSubmitSuccess={onSubmitSuccess}
                     />
                     {message.content && (
                       <div className="flex items-center gap-1 ml-1 opacity-0 hover:opacity-100 transition-opacity">

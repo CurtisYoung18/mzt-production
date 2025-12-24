@@ -4,7 +4,7 @@ import { callWorkflowAPI, type WorkflowRequest, CARD_TYPE_TO_WORKFLOW_TYPE } fro
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { cardType, userId, type } = body
+    const { cardType, userId, type, extraInput } = body
 
     if (!userId) {
       return NextResponse.json(
@@ -24,6 +24,7 @@ export async function POST(request: NextRequest) {
       cardType: cardType || "",
       userId,
       type: type !== undefined ? type : undefined,
+      extraInput: extraInput || undefined,
     }
 
     const actualType = type ?? CARD_TYPE_TO_WORKFLOW_TYPE[cardType]

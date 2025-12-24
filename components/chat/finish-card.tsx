@@ -24,9 +24,11 @@ interface FinishCardProps {
   message: string
   accountInfo?: AccountInfo | null
   extractType?: string
+  userId?: string  // 用户ID，用于调用 workflow API
   onViewRecords?: () => void
   onContinueChat?: () => void
   onEndChat?: (rating: number) => void
+  onSubmitSuccess?: () => void // 提交成功回调
   className?: string
 }
 
@@ -44,9 +46,11 @@ export default function FinishCard({
   message, 
   accountInfo,
   extractType = "租房",
+  userId,
   onViewRecords, 
   onContinueChat,
   onEndChat,
+  onSubmitSuccess,
   className 
 }: FinishCardProps) {
   const [stage, setStage] = useState<CardStage>("details")
@@ -100,10 +104,44 @@ export default function FinishCard({
     setStage("face_auth")
   }
 
-  const handleFaceAuthComplete = () => {
+  const handleFaceAuthComplete = async () => {
     setStage("verifying")
-    // 1.5 秒核对动画后进入成功页
-    setTimeout(() => setStage("success"), 1500)
+    
+    // 调用 workflow type=1132 提交
+    if (userId) {
+      try {
+        const response = await fetch("/api/workflow", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: 1132, // 提取提交
+            userId: userId,
+          }),
+        })
+        
+        const result = await response.json()
+        console.log("[FinishCard] 提取提交结果:", result)
+        
+        // 只有当 is_eligible = true 时才显示成功页面
+        if (result.is_eligible === true) {
+          setStage("success")
+          onSubmitSuccess?.() // 通知父组件提交成功
+        } else {
+          // is_eligible 不为 true，显示失败/待审核状态
+          console.log("[FinishCard] 提交未通过:", result.userMessage || "is_eligible 不为 true")
+          // 保持在验证状态或回到详情页
+          setStage("details")
+        }
+      } catch (error) {
+        console.error("[FinishCard] 提交出错:", error)
+        // 出错回到详情页
+        setStage("details")
+      }
+    } else {
+      // 没有 userId，无法提交
+      console.error("[FinishCard] 没有 userId，无法提交")
+      setStage("details")
+    }
   }
 
   const handleEndChat = () => {

@@ -22,7 +22,7 @@ interface SignCardProps {
   userInfo: UserBasicInfo
   userId: string // 用于调用 workflow API
   signType: "phone" | "bank" // 明确指定签约类型
-  onConfirm: () => void
+  onConfirm: (extraData?: { userId?: string; code?: string; mobile?: string }) => void
   className?: string
   isSpouse?: boolean // 是否是配偶签约
 }
@@ -123,9 +123,21 @@ export default function SignCard({ message, userInfo, userId, signType, onConfir
     
     setIsComplete(true)
     
-    // 等待动画后调用回调
+    // 准备额外参数（用于手机签约时传递 code 和 mobile）
+    const extraData: { userId?: string; code?: string; mobile?: string } = {}
+    
+    // 如果是手机签约，需要传递 code 和 mobile
+    if (isPhone) {
+      // 这里应该从用户输入获取验证码，目前使用模拟值
+      // TODO: 实际应该从输入框获取验证码
+      extraData.userId = userId
+      extraData.code = "336748" // 模拟验证码，实际应该从输入框获取
+      extraData.mobile = displayInfo.phone
+    }
+    
+    // 等待动画后调用回调，传递额外参数
     setTimeout(() => {
-      onConfirm()
+      onConfirm(extraData)
     }, 1000)
   }
 

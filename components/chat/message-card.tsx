@@ -35,11 +35,12 @@ interface MessageCardProps {
   message: Message
   userId: string
   userInfo?: UserBasicInfo
-  onBusinessCardAction?: (cardType: string, action: string, extraData?: { message?: string }) => void
+  onBusinessCardAction?: (cardType: string, action: string, extraData?: { message?: string; userId?: string; code?: string; mobile?: string }) => void
   onViewRecords?: () => void
   onContinueChat?: () => void
   onEndChat?: (rating: number) => void
   onSendMessage?: (content: string) => void
+  onSubmitSuccess?: () => void // 提交成功回调
 }
 
 // 从字符串中提取 JSON 对象
@@ -408,7 +409,8 @@ export default function MessageCard({
   onViewRecords,
   onContinueChat,
   onEndChat,
-  onSendMessage
+  onSendMessage,
+  onSubmitSuccess
 }: MessageCardProps) {
   const [expanded, setExpanded] = useState(true)
 
@@ -739,7 +741,7 @@ export default function MessageCard({
           userInfo={userInfo}
           userId={userId}
           signType="phone"
-          onConfirm={() => onBusinessCardAction("sms_sign", "confirm")}
+          onConfirm={(extraData) => onBusinessCardAction("sms_sign", "confirm", extraData)}
         />
       )}
       
@@ -759,9 +761,11 @@ export default function MessageCard({
         <FinishCard
           message={llmCardMessage}
           accountInfo={message.accountInfo}
+          userId={userId}
           onViewRecords={onViewRecords}
           onContinueChat={onContinueChat}
           onEndChat={onEndChat}
+          onSubmitSuccess={onSubmitSuccess}
         />
       )}
       
@@ -769,6 +773,7 @@ export default function MessageCard({
       {llmCardType === "user_unauth" && userInfo && onBusinessCardAction && !message.authCompleted && (
         <AuthCard
           userInfo={userInfo}
+          userId={userId}
           onConfirm={() => onBusinessCardAction("user_unauth", "confirm")}
           isProcessingAuth={false}
           permitExtractTypes={message.permitExtractTypes}
@@ -784,7 +789,7 @@ export default function MessageCard({
           userId={userId}
           signType="phone"
           isSpouse={true}
-          onConfirm={() => onBusinessCardAction("mate_sms", "confirm")}
+          onConfirm={(extraData) => onBusinessCardAction("mate_sms", "confirm", extraData)}
         />
       )}
       
@@ -792,7 +797,8 @@ export default function MessageCard({
       {llmCardType === "mate_sign" && userInfo && onBusinessCardAction && !message.authCompleted && (
         <AuthCard
           userInfo={userInfo}
-          onConfirm={() => onBusinessCardAction("mate_sign", "confirm")}
+          userId={userId}
+          onConfirm={(extraData) => onBusinessCardAction("mate_sign", "confirm", extraData)}
           isProcessingAuth={false}
           isSpouse={true}
         />

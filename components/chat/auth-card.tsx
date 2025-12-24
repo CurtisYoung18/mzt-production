@@ -8,7 +8,8 @@ import type { UserBasicInfo } from "@/types/chat"
 
 interface AuthCardProps {
   userInfo: UserBasicInfo
-  onConfirm: () => void
+  userId?: string // 用户ID（用于传递额外参数）
+  onConfirm: (extraData?: { userId?: string; code?: string; mobile?: string }) => void
   className?: string
   // 是否是查询公积金的授权（processing_auth），授权后只显示"授权成功"
   isProcessingAuth?: boolean
@@ -24,6 +25,7 @@ interface AuthCardProps {
 
 export default function AuthCard({ 
   userInfo, 
+  userId,
   onConfirm, 
   className,
   isProcessingAuth = false,
@@ -51,7 +53,19 @@ export default function AuthCard({
   const handleConfirm = async () => {
     if (!agreed || isSubmitting) return
     setIsSubmitting(true)
-    await onConfirm()
+    
+    // 准备额外参数（用于配偶授权时传递 code 和 mobile）
+    const extraData: { userId?: string; code?: string; mobile?: string } = {}
+    
+    // 如果是配偶授权，需要传递 code 和 mobile
+    if (isSpouse && userId) {
+      extraData.userId = userId
+      // TODO: 实际应该从输入框获取验证码，目前使用模拟值
+      extraData.code = "336748" // 模拟验证码，实际应该从输入框获取
+      extraData.mobile = userInfo.phone
+    }
+    
+    await onConfirm(extraData)
     setIsSubmitting(false)
     setShowSuccess(true)
   }

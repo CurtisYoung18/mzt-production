@@ -447,6 +447,7 @@ export interface WorkflowRequest {
   cardType: string // 卡片类型：auth, sms_sign, bank_sign 等
   userId: string // 用户ID
   type?: number // 可选：直接指定 type 值，否则根据 cardType 映射
+  extraInput?: Record<string, unknown> // 额外的 input 参数（如 code, mobile）
 }
 
 // Workflow API 原始响应格式
@@ -534,10 +535,16 @@ export async function callWorkflowAPI(request: WorkflowRequest): Promise<Workflo
   console.log("[Workflow API] API 地址:", url)
 
   // 构建请求体：按照文档格式
+  const inputData: Record<string, unknown> = { userId: request.userId }
+  // 合并额外的 input 参数（如 code, mobile）
+  if (request.extraInput) {
+    Object.assign(inputData, request.extraInput)
+  }
+  
   const requestBody = {
     userId: request.userId,
     input: {
-      data: JSON.stringify({ userId: request.userId }),
+      data: JSON.stringify(inputData),
       type: typeValue,
     },
     isAsync: false, // 同步执行

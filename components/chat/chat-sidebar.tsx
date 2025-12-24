@@ -193,10 +193,12 @@ export default function ChatSidebar({
                 </div>
               )}
 
-              {/* 流程图 - 通过 card_type 点亮 */}
-              {currentCardType && (
+              {/* 流程图 - 根据 currentCardType 点亮，但 account_info 时不显示 */}
+              {currentCardType && currentCardType !== "account_info" && (
                 <div className="px-3">
-                  <ExtractFlowChart currentCardType={currentCardType} />
+                  <ExtractFlowChart 
+                    currentCardType={currentCardType}
+                  />
                 </div>
               )}
 
