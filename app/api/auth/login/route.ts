@@ -4,16 +4,17 @@ import { cookies } from "next/headers"
 
 export async function POST(request: Request) {
   try {
-    const { account, password } = await request.json()
+    const { account } = await request.json()
 
-    if (!account || !password) {
-      return NextResponse.json({ error: "请输入账号和密码" }, { status: 400 })
+    if (!account) {
+      return NextResponse.json({ error: "请输入登录序号" }, { status: 400 })
     }
 
-    const user = await authenticateUser(account, password)
+    // 通过序号登录，不需要密码
+    const user = await authenticateUser(account)
 
     if (!user) {
-      return NextResponse.json({ error: "账号或密码错误" }, { status: 401 })
+      return NextResponse.json({ error: "无效的登录序号" }, { status: 401 })
     }
 
     // Set user session cookie

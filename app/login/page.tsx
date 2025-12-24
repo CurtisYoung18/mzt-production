@@ -10,10 +10,18 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Building2, Loader2 } from "lucide-react"
 
+// 测试用户列表
+const TEST_USERS = [
+  { code: "1", userId: "szsfpt020251223173845080a5245392" },
+  { code: "2", userId: "szsfpt020251201144124394a0790181" },
+  { code: "3", userId: "szsfpt020251223172644365a9395630" },
+  { code: "4", userId: "szsfpt020251223154606140a5064417" },
+  { code: "5", userId: "szsfpt020251215101659991a9205534" },
+]
+
 export default function LoginPage() {
   const router = useRouter()
-  const [account, setAccount] = useState("")
-  const [password, setPassword] = useState("")
+  const [loginCode, setLoginCode] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
 
@@ -26,7 +34,35 @@ export default function LoginPage() {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ account, password }),
+        body: JSON.stringify({ account: loginCode }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        setError(data.error || "登录失败")
+        return
+      }
+
+      window.location.href = "/chat"
+    } catch {
+      setError("网络错误，请稍后重试")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // 快速登录按钮
+  const handleQuickLogin = async (code: string) => {
+    setLoginCode(code)
+    setError("")
+    setLoading(true)
+
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ account: code }),
       })
 
       const data = await res.json()
@@ -59,26 +95,14 @@ export default function LoginPage() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="account">账号</Label>
+              <Label htmlFor="loginCode">登录序号</Label>
               <Input
-                id="account"
+                id="loginCode"
                 type="text"
-                placeholder="请输入身份证号或手机号"
-                value={account}
-                onChange={(e) => setAccount(e.target.value)}
-                className="bg-card"
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">密码</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="请输入密码"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="bg-card"
+                placeholder="请输入序号 (1-5)"
+                value={loginCode}
+                onChange={(e) => setLoginCode(e.target.value)}
+                className="bg-card text-center text-lg"
                 required
               />
             </div>
@@ -98,13 +122,29 @@ export default function LoginPage() {
               )}
             </Button>
           </form>
+          
+          {/* 测试账号列表 */}
           <div className="mt-6 p-4 bg-secondary/50 rounded-lg">
-            <p className="text-xs text-muted-foreground mb-2">测试账号（密码均为 admin123）：</p>
-            <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-              <div>张三: 13800138001</div>
-              <div>李四: 13800138002</div>
-              <div>王五: 13800138003</div>
-              <div>赵六: 13800138004</div>
+            <p className="text-xs text-muted-foreground mb-3">测试账号（点击序号快速登录）：</p>
+            <div className="space-y-2">
+              {TEST_USERS.map((user) => (
+                <div 
+                  key={user.code}
+                  className="flex items-center gap-2 text-xs"
+                >
+                  <button
+                    type="button"
+                    onClick={() => handleQuickLogin(user.code)}
+                    disabled={loading}
+                    className="w-8 h-8 rounded-full bg-primary/20 hover:bg-primary/30 text-primary font-semibold transition-colors disabled:opacity-50"
+                  >
+                    {user.code}
+                  </button>
+                  <span className="text-muted-foreground font-mono text-[10px] truncate">
+                    {user.userId}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
         </CardContent>

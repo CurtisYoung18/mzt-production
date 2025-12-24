@@ -9,8 +9,9 @@ import {
 // 使用模拟数据库（生产版本使用 mock 数据）
 console.log("🎭 Using mock database")
 
-export async function authenticateUser(account: string, password: string) {
-  return mockAuthenticateUser(account, password)
+// 通过序号登录，不需要密码
+export async function authenticateUser(loginCode: string) {
+  return mockAuthenticateUser(loginCode)
 }
 
 export async function getUserById(userId: string) {

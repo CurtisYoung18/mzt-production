@@ -3,46 +3,54 @@
  * 无需连接真实数据库
  */
 
-// 用户数据
+// 用户数据 - 通过序号登录
 export const mockUsers = [
   {
     id: 1,
-    user_id: "U001",
-    name: "张三",
+    user_id: "szsfpt020251223173845080a5245392",
+    name: "测试用户1",
     id_card: "350102199001011234",
     phone: "13800138001",
-    password: "admin123",
+    login_code: "1", // 登录序号
   },
   {
     id: 2,
-    user_id: "U002",
-    name: "李四",
+    user_id: "szsfpt020251201144124394a0790181",
+    name: "测试用户2",
     id_card: "350102199202022345",
     phone: "13800138002",
-    password: "admin123",
+    login_code: "2",
   },
   {
     id: 3,
-    user_id: "U003",
-    name: "王五",
+    user_id: "szsfpt020251223172644365a9395630",
+    name: "测试用户3",
     id_card: "350102199303033456",
     phone: "13800138003",
-    password: "admin123",
+    login_code: "3",
   },
   {
     id: 4,
-    user_id: "U004",
-    name: "赵六",
+    user_id: "szsfpt020251223154606140a5064417",
+    name: "测试用户4",
     id_card: "350102199404044567",
     phone: "13800138004",
-    password: "admin123",
+    login_code: "4",
+  },
+  {
+    id: 5,
+    user_id: "szsfpt020251215101659991a9205534",
+    name: "测试用户5",
+    id_card: "350102199505055678",
+    phone: "13800138005",
+    login_code: "5",
   },
 ]
 
 // 公积金账户信息
 export const mockAccountInfo = [
   {
-    user_id: "U001",
+    user_id: "szsfpt020251223173845080a5245392",
     personal_account: "12****789",
     open_date: "2020-05-05",
     paid_until: "2022-05",
@@ -66,7 +74,7 @@ export const mockAccountInfo = [
     total_balance: 72000.0,
   },
   {
-    user_id: "U002",
+    user_id: "szsfpt020251201144124394a0790181",
     personal_account: "12****456",
     open_date: "2019-03-15",
     paid_until: "2024-11",
@@ -90,7 +98,7 @@ export const mockAccountInfo = [
     total_balance: 138240.0,
   },
   {
-    user_id: "U003",
+    user_id: "szsfpt020251223172644365a9395630",
     personal_account: "12****321",
     open_date: "2021-08-20",
     paid_until: "2024-11",
@@ -114,7 +122,7 @@ export const mockAccountInfo = [
     total_balance: 50700.0,
   },
   {
-    user_id: "U004",
+    user_id: "szsfpt020251223154606140a5064417",
     personal_account: "12****654",
     open_date: "2018-01-10",
     paid_until: "2023-08",
@@ -136,6 +144,30 @@ export const mockAccountInfo = [
     company_name: "漳州物流有限公司",
     company_account: "35**********012",
     total_balance: 48960.0,
+  },
+  {
+    user_id: "szsfpt020251215101659991a9205534",
+    personal_account: "12****987",
+    open_date: "2022-02-18",
+    paid_until: "2024-11",
+    id_type: "身份证",
+    id_number: "35**************567",
+    residence: "莆田",
+    marital_status: "未婚",
+    phone: "139****5005",
+    bank_name: "中国银行",
+    bank_account: "6216 **** **** 7890",
+    account_type: "公积金账户",
+    account_status: "正常",
+    seal_date: null,
+    deposit_base: 5500.0,
+    personal_rate: "12%",
+    personal_amount: 660.0,
+    company_rate: "12%",
+    company_amount: 660.0,
+    company_name: "莆田电子科技公司",
+    company_account: "35**********345",
+    total_balance: 35640.0,
   },
 ]
 
@@ -168,7 +200,7 @@ const INITIAL_USER_ATTRIBUTES: Record<string, {
   extract_verified: boolean
   extract_code_verified: boolean
 }> = {
-  "U001": {
+  "szsfpt020251223173845080a5245392": {
     city: "福州",
     phase: "1000", // 未开始 - 演示完整流程
     is_auth: false,
@@ -187,7 +219,7 @@ const INITIAL_USER_ATTRIBUTES: Record<string, {
     extract_verified: false,
     extract_code_verified: false,
   },
-  "U002": {
+  "szsfpt020251201144124394a0790181": {
     city: "泉州",
     phase: "1015", // 本人未手机签约 - 演示手机签约流程
     is_auth: true,
@@ -206,7 +238,7 @@ const INITIAL_USER_ATTRIBUTES: Record<string, {
     extract_verified: false,
     extract_code_verified: false,
   },
-  "U003": {
+  "szsfpt020251223172644365a9395630": {
     city: "厦门",
     phase: "1018", // 本人未银行卡签约 - 演示银行卡签约流程
     is_auth: true,
@@ -225,7 +257,7 @@ const INITIAL_USER_ATTRIBUTES: Record<string, {
     extract_verified: false,
     extract_code_verified: false,
   },
-  "U004": {
+  "szsfpt020251223154606140a5064417": {
     city: "漳州",
     phase: "1029", // 满足租房提取条件 - 演示提取流程
     is_auth: true,
@@ -238,6 +270,25 @@ const INITIAL_USER_ATTRIBUTES: Record<string, {
     cannot_extract_reason: null,
     sms_signed: true,
     bank_card_signed: true,
+    current_extract_type: null,
+    current_type_needs_auth: false,
+    current_type_authorized: false,
+    extract_verified: false,
+    extract_code_verified: false,
+  },
+  "szsfpt020251215101659991a9205534": {
+    city: "莆田",
+    phase: "1000", // 未开始
+    is_auth: false,
+    is_authenticated: false,
+    is_married: false,
+    spouse_authorized: false,
+    history_extract_types: [],
+    permit_extract_types: ["租房", "购房"],
+    can_extract: true,
+    cannot_extract_reason: null,
+    sms_signed: false,
+    bank_card_signed: false,
     current_extract_type: null,
     current_type_needs_auth: false,
     current_type_authorized: false,
@@ -259,7 +310,7 @@ const INITIAL_USER_ATTRIBUTES: Record<string, {
 
 export const mockUserAttributes = [
   {
-    user_id: "U001",
+    user_id: "szsfpt020251223173845080a5245392",
     city: "福州",
     phase: "1000", // 未开始 - 演示完整流程
     is_auth: false, // GPTBots 用户属性：是否已授权（用于触发授权卡片）
@@ -279,7 +330,7 @@ export const mockUserAttributes = [
     extract_code_verified: false,
   },
   {
-    user_id: "U002",
+    user_id: "szsfpt020251201144124394a0790181",
     city: "泉州",
     phase: "1015", // 本人未手机签约 - 演示手机签约流程
     is_auth: true, // 已授权
@@ -299,7 +350,7 @@ export const mockUserAttributes = [
     extract_code_verified: false,
   },
   {
-    user_id: "U003",
+    user_id: "szsfpt020251223172644365a9395630",
     city: "厦门",
     phase: "1018", // 本人未银行卡签约 - 演示银行卡签约流程
     is_auth: true, // 已授权
@@ -319,8 +370,8 @@ export const mockUserAttributes = [
     extract_code_verified: false,
   },
   {
-    user_id: "U004",
-    city: "莆田",
+    user_id: "szsfpt020251223154606140a5064417",
+    city: "漳州",
     phase: "1029", // 满足租房提取条件 - 演示提取流程
     is_auth: true, // 已授权
     is_authenticated: true,
@@ -338,15 +389,37 @@ export const mockUserAttributes = [
     extract_verified: false,
     extract_code_verified: false,
   },
+  {
+    user_id: "szsfpt020251215101659991a9205534",
+    city: "莆田",
+    phase: "1000", // 未开始
+    is_auth: false,
+    is_authenticated: false,
+    is_married: false,
+    spouse_authorized: false,
+    history_extract_types: [],
+    permit_extract_types: ["租房", "购房"],
+    can_extract: true,
+    cannot_extract_reason: null,
+    sms_signed: false,
+    bank_card_signed: false,
+    current_extract_type: null,
+    current_type_needs_auth: false,
+    current_type_authorized: false,
+    extract_verified: false,
+    extract_code_verified: false,
+  },
 ]
 
 // =====================================================
 // 模拟数据库查询函数
 // =====================================================
 
-export function mockAuthenticateUser(account: string, password: string) {
+// 通过序号登录（不需要密码）
+export function mockAuthenticateUser(loginCode: string, _password?: string) {
+  // 支持通过序号登录
   const user = mockUsers.find(
-    (u) => (u.id_card === account || u.phone === account) && u.password === password
+    (u) => u.login_code === loginCode
   )
   if (user) {
     return {
