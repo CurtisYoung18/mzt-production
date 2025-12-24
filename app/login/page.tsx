@@ -17,6 +17,7 @@ const TEST_USERS = [
   { code: "3", userId: "szsfpt020251223172644365a9395630" },
   { code: "4", userId: "szsfpt020251223154606140a5064417" },
   { code: "5", userId: "szsfpt020251215101659991a9205534" },
+  { code: "6", userId: "szsfpt020251215101659991a9205535" },
 ]
 
 export default function LoginPage() {
@@ -99,7 +100,7 @@ export default function LoginPage() {
               <Input
                 id="loginCode"
                 type="text"
-                placeholder="请输入序号 (1-5)"
+                placeholder="请输入序号 (1-6)"
                 value={loginCode}
                 onChange={(e) => setLoginCode(e.target.value)}
                 className="bg-card text-center text-lg"
