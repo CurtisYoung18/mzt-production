@@ -770,12 +770,13 @@ export default function MessageCard({
       )}
       
       {/* Business Card - 用户未授权卡片 (card_type: "user_unauth") */}
-      {llmCardType === "user_unauth" && userInfo && onBusinessCardAction && !message.authCompleted && (
+      {llmCardType === "user_unauth" && userInfo && onBusinessCardAction && (
         <AuthCard
           userInfo={userInfo}
           userId={userId}
           onConfirm={() => onBusinessCardAction("user_unauth", "confirm")}
           isProcessingAuth={false}
+          authCompleted={message.authCompleted}
           permitExtractTypes={message.permitExtractTypes}
           onSelectExtractType={onSendMessage}
         />
@@ -794,12 +795,13 @@ export default function MessageCard({
       )}
       
       {/* Business Card - 配偶授权卡片 (card_type: "mate_sign") */}
-      {llmCardType === "mate_sign" && userInfo && onBusinessCardAction && !message.authCompleted && (
+      {llmCardType === "mate_sign" && userInfo && onBusinessCardAction && (
         <AuthCard
           userInfo={userInfo}
           userId={userId}
           onConfirm={(extraData) => onBusinessCardAction("mate_sign", "confirm", extraData)}
           isProcessingAuth={false}
+          authCompleted={message.authCompleted}
           isSpouse={true}
         />
       )}
