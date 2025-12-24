@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createConversation, updateUserProperties, type PropertyValue } from "@/lib/gptbots"
-import { getUserAttributes } from "@/lib/db"
+import { getUserById, getUserAttributes } from "@/lib/db"
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,6 +20,17 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    // 验证 user_id 是否存在于 mock 数据中
+    const user = await getUserById(userId)
+    if (!user) {
+      console.log("[会话创建] ⚠️ 用户不存在于 mock 数据中:", userId)
+      return NextResponse.json(
+        { error: `用户 ${userId} 不存在于系统中` },
+        { status: 404 }
+      )
+    }
+    console.log("[会话创建] ✅ 用户验证通过 - 从 mock 数据中获取:", user.user_id)
 
     // Create conversation
     const conversationId = await createConversation(userId)

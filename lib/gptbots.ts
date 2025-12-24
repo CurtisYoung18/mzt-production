@@ -5,9 +5,13 @@ import http from "http"
 import https from "https"
 import { Readable } from "stream"
 
-// const GPTBOTS_API_KEY = process.env.GPTBOTS_API_KEY || "app-O9qte2NIaa2JgFFS7ePpK69c"
-const GPTBOTS_API_KEY = process.env.GPTBOTS_API_KEY || "app-WaxCZdYdSZuuQcAsCOaz8v14"
-// const GPTBOTS_BASE_URL = process.env.GPTBOTS_BASE_URL || "https://27.156.118.33:40443"
+// Agent Key - 用于与 GPTBots Agent 交互
+const GPTBOTS_AGENT_KEY = process.env.GPTBOTS_AGENT_KEY || "app-LfqJtziJlLlAppTpsKgq21ck"
+
+// Workflow Key - 用于调用 GPTBots Workflow API
+const GPTBOTS_WORKFLOW_KEY = process.env.GPTBOTS_WORKFLOW_KEY || "app-6U1jipKo3AN4qLrf7wzl4UqP"
+
+// GPTBots Base URL
 const GPTBOTS_BASE_URL = process.env.GPTBOTS_BASE_URL || "https://api-sg.gptbots.ai"
 
 // Create HTTPS agent that ignores SSL certificate errors
@@ -239,7 +243,7 @@ export async function createConversation(userId: string): Promise<string> {
     const response = await fetchWithSSLBypass(url, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${GPTBOTS_API_KEY}`,
+        Authorization: `Bearer ${GPTBOTS_AGENT_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ user_id: userId }),
@@ -280,7 +284,7 @@ export async function updateUserProperties(
     const response = await fetchWithSSLBypass(url, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${GPTBOTS_API_KEY}`,
+        Authorization: `Bearer ${GPTBOTS_AGENT_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -315,7 +319,7 @@ export async function sendMessageStreaming(
   const stream = await fetchStreamWithSSLBypass(url, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${GPTBOTS_API_KEY}`,
+      Authorization: `Bearer ${GPTBOTS_AGENT_KEY}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
@@ -341,7 +345,7 @@ export async function sendMessageBlocking(
   const response = await fetchWithSSLBypass(url, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${GPTBOTS_API_KEY}`,
+      Authorization: `Bearer ${GPTBOTS_AGENT_KEY}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
@@ -411,5 +415,208 @@ export function parseStreamEvent(line: string): StreamEvent | null {
     return JSON.parse(line)
   } catch {
     return null
+  }
+}
+
+// Workflow API 调用接口
+
+// 卡片类型到 type 值的映射（租房提取流程）
+export const CARD_TYPE_TO_WORKFLOW_TYPE: Record<string, number> = {
+  "auth": 1,                    // 用户授权卡片提交
+  "processing_auth": 100,       // 个人与配偶信息查询
+  "spouse_sign": 1071,          // 配偶签约卡片提交
+  "spouse_auth": 1081,          // 配偶授权卡片提交
+  "sms_sign": 1121,             // 本人手机签约卡片提交
+  "bank_sign": 1131,            // 本人银行卡签约卡片提交
+  "extract_submit": 1132,       // 提取提交卡片提交
+}
+
+export interface WorkflowRequest {
+  cardType: string // 卡片类型：auth, sms_sign, bank_sign 等
+  userId: string // 用户ID
+  type?: number // 可选：直接指定 type 值，否则根据 cardType 映射
+}
+
+// Workflow API 原始响应格式
+export interface WorkflowRawResponse {
+  workflowId?: string
+  workflowName?: string
+  workflowVersion?: string
+  workflowRunId?: string
+  input?: {
+    data: string // JSON 字符串
+    type: number
+  }
+  output?: {
+    data: string // JSON 字符串，包含实际业务数据
+    is_attr_changed?: boolean
+    user_message?: string
+  }
+  workflowExecutionTime?: number
+  status?: string // SUCCEED, FAILED, PENDING, RUNNING
+  totalCost?: number
+  totalTokens?: number
+  startTime?: number
+  endTime?: number
+}
+
+// 解析后的 Workflow 响应
+export interface WorkflowResponse {
+  success: boolean // 是否成功
+  userMessage?: string // 用户消息（用于自动发送）
+  isAttrChanged?: boolean // 是否属性发生变化
+  data?: Record<string, unknown> // 解析后的业务数据
+  rawResponse?: WorkflowRawResponse // 原始响应
+}
+
+// 解析 type 100 返回的公积金账户数据
+export interface GjjAccountData {
+  xingming?: string // 姓名
+  zjhm?: string // 证件号码
+  sjhm?: string // 手机号码
+  grzh?: string // 个人账户
+  zhye?: string // 账户余额
+  grjcbl?: string // 个人缴存比例
+  dwjcbl?: string // 单位缴存比例
+  grjcjs?: string // 个人缴存基数
+  gryjce?: string // 个人月缴存额
+  dwyjce?: string // 单位月缴存额
+  dwmc?: string // 单位名称
+  dwzh?: string // 单位账户
+  grzhzt?: string // 个人账户状态
+  khrq?: string // 开户日期
+  styhmc?: string // 受托银行名称
+  hyzk?: string // 婚姻状况
+  poxm?: string // 配偶姓名
+  pozjhm?: string // 配偶证件号码
+  pozjlx?: string // 配偶证件类型
+  // 更多字段...
+  [key: string]: unknown
+}
+
+/**
+ * 调用 GPTBots Workflow API
+ * 根据 doc/工作流api.md 文档格式
+ * 
+ * @param request Workflow 请求参数
+ * @returns Workflow 响应结果
+ */
+export async function callWorkflowAPI(request: WorkflowRequest): Promise<WorkflowResponse> {
+  const url = `${GPTBOTS_BASE_URL}/v1/workflow/invoke`
+  
+  // 获取 type 值：优先使用传入的 type，否则根据 cardType 映射
+  const typeValue = request.type ?? CARD_TYPE_TO_WORKFLOW_TYPE[request.cardType]
+  
+  if (typeValue === undefined) {
+    console.error("[Workflow API] ❌ 未知的卡片类型:", request.cardType)
+    return {
+      success: false,
+      userMessage: "未知的卡片类型",
+    }
+  }
+  
+  console.log("[Workflow API] 调用 Workflow - 卡片类型:", request.cardType, "type:", typeValue)
+  console.log("[Workflow API] 用户ID:", request.userId)
+  console.log("[Workflow API] API 地址:", url)
+
+  // 构建请求体：按照文档格式
+  const requestBody = {
+    userId: request.userId,
+    input: {
+      data: JSON.stringify({ userId: request.userId }),
+      type: typeValue,
+    },
+    isAsync: false, // 同步执行
+  }
+
+  console.log("[Workflow API] 请求体:", JSON.stringify(requestBody, null, 2))
+
+  try {
+    const response = await fetchWithSSLBypass(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${GPTBOTS_WORKFLOW_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(requestBody),
+    })
+
+    console.log("[Workflow API] 响应状态:", response.status)
+    const responseText = await response.text()
+    console.log("[Workflow API] 响应内容:", responseText.substring(0, 1000))
+
+    if (!response.ok) {
+      console.error("[Workflow API] ❌ 调用失败:", response.status, responseText)
+      return {
+        success: false,
+        userMessage: `Workflow API 调用失败: HTTP ${response.status}`,
+      }
+    }
+
+    try {
+      const rawResponse: WorkflowRawResponse = JSON.parse(responseText)
+      console.log("[Workflow API] ✅ Workflow 响应状态:", rawResponse.status)
+      
+      // 检查执行状态
+      if (rawResponse.status !== "SUCCEED") {
+        console.error("[Workflow API] ❌ Workflow 执行失败:", rawResponse.status)
+        return {
+          success: false,
+          userMessage: `Workflow 执行失败: ${rawResponse.status}`,
+          rawResponse,
+        }
+      }
+      
+      // 解析 output
+      const output = rawResponse.output
+      if (!output) {
+        console.log("[Workflow API] ⚠️ 没有 output 数据")
+        return {
+          success: true,
+          rawResponse,
+        }
+      }
+      
+      // 解析 output.data（JSON 字符串）
+      let parsedData: Record<string, unknown> = {}
+      if (output.data) {
+        try {
+          parsedData = JSON.parse(output.data)
+          console.log("[Workflow API] 解析后的业务数据:", JSON.stringify(parsedData, null, 2).substring(0, 500))
+        } catch (parseDataError) {
+          console.error("[Workflow API] ⚠️ 解析 output.data 失败:", parseDataError)
+        }
+      }
+      
+      // 检查业务状态（code 字段）
+      const code = parsedData.code as number | undefined
+      const isEligible = parsedData.is_eligible as boolean | undefined
+      const displayInfo = parsedData.display_info as string | undefined
+      
+      // 判断是否成功：code 为 0 或 is_eligible 为 true
+      const isSuccess = code === 0 || isEligible === true
+      
+      console.log("[Workflow API] 业务状态 - code:", code, "is_eligible:", isEligible, "成功:", isSuccess)
+      
+      return {
+        success: isSuccess,
+        userMessage: output.user_message || displayInfo,
+        isAttrChanged: output.is_attr_changed,
+        data: parsedData,
+        rawResponse,
+      }
+    } catch (parseError) {
+      console.error("[Workflow API] ❌ 响应解析失败:", parseError)
+      return {
+        success: false,
+        userMessage: "Workflow API 响应解析失败",
+      }
+    }
+  } catch (error) {
+    console.error("[Workflow API] ❌ 调用出错:", error)
+    return {
+      success: false,
+      userMessage: error instanceof Error ? error.message : "Workflow API 调用出错",
+    }
   }
 }

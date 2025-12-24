@@ -395,6 +395,10 @@ export default function MessageCard({
   const llmCardType = parsedResponse?.card_type
   const llmCardMessage = parsedResponse?.card_message
 
+  // 检查是否为 JSON 格式响应（有 parsedResponse 但可能没有 card_type）
+  const isJsonResponse = parsedResponse !== null
+  const hasCardType = !!llmCardType
+
   // Regular text message with thinking process and LLM card
   return (
     <div className="max-w-full space-y-3">
@@ -405,6 +409,20 @@ export default function MessageCard({
           isComplete={message.thinkingComplete}
           className="mb-2"
         />
+      )}
+      
+      {/* Place Holder - 当是 JSON 响应但没有 card_type 时显示 */}
+      {isJsonResponse && !hasCardType && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-muted/50 border border-border rounded-2xl p-4 max-w-sm"
+        >
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-muted-foreground/40"></div>
+            <span className="text-sm text-muted-foreground">Place Holder</span>
+          </div>
+        </motion.div>
       )}
       
       {/* Business Card - 授权卡片 (card_type: "auth") - 提取流程授权 */}

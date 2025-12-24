@@ -46,14 +46,6 @@ export async function POST(request: Request) {
     console.error("Login error:", error)
     const errorMessage = error instanceof Error ? error.message : "Unknown error"
     
-    // Check if it's a database connection error
-    if (errorMessage.includes("database connection") || errorMessage.includes("DATABASE_URL")) {
-      return NextResponse.json(
-        { error: "数据库连接失败，请检查环境变量配置" },
-        { status: 500 }
-      )
-    }
-    
     return NextResponse.json(
       { error: "登录失败，请稍后重试", details: process.env.NODE_ENV === "development" ? errorMessage : undefined },
       { status: 500 }

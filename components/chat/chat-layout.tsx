@@ -340,189 +340,333 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
   // 处理业务卡片操作
   const handleBusinessCardAction = async (cardType: string, action: string, extraData?: { message?: string }) => {
     
-    // 提取流程授权 (card_type: "auth")
+    // 提取流程授权 (card_type: "auth", type: 1)
     if (cardType === "auth" && action === "confirm") {
       try {
-        // 更新用户 is_auth 为 true（完成授权）
-        
-        // 1. 更新本地 mock 数据库
-        const response = await fetch("/api/user/attribute", {
-          method: "PUT",
+        // 1. 调用 Workflow API (type: 1 - 用户授权卡片提交)
+        const workflowResponse = await fetch("/api/workflow", {
+          method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            cardType: "auth",
             userId: user.userId,
-            attributeName: "is_auth",
-            value: true,
           }),
         })
 
-        // 2. 同步更新 GPTBots 用户属性
-        await fetch("/api/user/gptbots-attribute", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-            userId: user.userId,
-            attributeName: "is_auth",
-            value: true,
-        }),
-      })
+        const workflowResult = await workflowResponse.json()
+        console.log("[Business Card] auth workflow result:", workflowResult)
 
-        // 获取用户可用的提取类型
-        const attrResponse = await fetch(`/api/user/attribute?userId=${user.userId}`)
-        const attrData = await attrResponse.json()
-        const permitExtractTypes = attrData?.data?.permit_extract_types || []
-        
-        // 找到包含 auth 卡片的消息，更新它显示可用的提取类型
-        setMessages((prev) => {
-          const lastAuthMessageIndex = [...prev].reverse().findIndex(m => m.llmCardType === "auth")
-          if (lastAuthMessageIndex === -1) return prev
+        // 2. 只有当 Workflow 返回 success 为 true 时，才执行后续操作
+        if (workflowResult.success) {
+          // 更新用户 is_auth 为 true（完成授权）
           
-          const actualIndex = prev.length - 1 - lastAuthMessageIndex
-          return prev.map((m, i) =>
-            i === actualIndex
-              ? { ...m, authCompleted: true, permitExtractTypes }
-              : m
-          )
-        })
-        
-        // 刷新流程图的用户属性状态
-        fetchUserAttributes()
-        
-        // 自动发送用户消息
-        setTimeout(() => {
-          handleSendMessage("我已完成授权，请继续")
-        }, 500)
+          // 2.1 更新本地 mock 数据库
+          await fetch("/api/user/attribute", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              userId: user.userId,
+              attributeName: "is_auth",
+              value: true,
+            }),
+          })
+
+          // 2.2 同步更新 GPTBots 用户属性
+          await fetch("/api/user/gptbots-attribute", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              userId: user.userId,
+              attributeName: "is_auth",
+              value: true,
+            }),
+          })
+
+          // 获取用户可用的提取类型
+          const attrResponse = await fetch(`/api/user/attribute?userId=${user.userId}`)
+          const attrData = await attrResponse.json()
+          const permitExtractTypes = attrData?.data?.permit_extract_types || []
+          
+          // 找到包含 auth 卡片的消息，更新它显示可用的提取类型
+          setMessages((prev) => {
+            const lastAuthMessageIndex = [...prev].reverse().findIndex(m => m.llmCardType === "auth")
+            if (lastAuthMessageIndex === -1) return prev
+            
+            const actualIndex = prev.length - 1 - lastAuthMessageIndex
+            return prev.map((m, i) =>
+              i === actualIndex
+                ? { ...m, authCompleted: true, permitExtractTypes }
+                : m
+            )
+          })
+          
+          // 刷新流程图的用户属性状态
+          fetchUserAttributes()
+          
+          // 使用 Workflow 返回的 user_message 发送确认消息
+          const userMessage = workflowResult.userMessage || "我已完成授权，请继续"
+          setTimeout(() => {
+            handleSendMessage(userMessage)
+          }, 500)
+        } else {
+          // Workflow 调用失败，使用返回的 userMessage 或显示错误
+          const errorMessage = workflowResult.userMessage || workflowResult.error || "授权失败，请重试"
+          console.error("[Business Card] Workflow 调用失败:", errorMessage)
+          // 发送失败消息给 AI
+          setTimeout(() => {
+            handleSendMessage(errorMessage)
+          }, 500)
+        }
       } catch (error) {
         console.error("[Business Card] auth error:", error)
       }
     }
     
-    // 查询公积金授权 (card_type: "processing_auth") - 授权后只显示"授权成功"，不显示提取业务选项
+    // 查询公积金授权 (card_type: "processing_auth", type: 100) - 个人与配偶信息查询
+    // 这个 type 会返回公积金账户详细数据，需要渲染到账户查询卡片
     if (cardType === "processing_auth" && action === "confirm") {
       try {
-        // 1. 更新本地 mock 数据库
-        await fetch("/api/user/attribute", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            userId: user.userId,
-            attributeName: "is_auth",
-            value: true,
-          }),
-        })
-
-        // 2. 同步更新 GPTBots 用户属性
-        await fetch("/api/user/gptbots-attribute", {
+        // 1. 调用 Workflow API (type: 100 - 个人与配偶信息查询)
+        const workflowResponse = await fetch("/api/workflow", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            cardType: "processing_auth",
             userId: user.userId,
-            attributeName: "is_auth",
-            value: true,
           }),
         })
-        
-        // 找到包含 processing_auth 卡片的消息，更新 authCompleted（不显示提取类型气泡）
-        setMessages((prev) => {
-          const lastAuthMessageIndex = [...prev].reverse().findIndex(m => m.llmCardType === "processing_auth")
-          if (lastAuthMessageIndex === -1) return prev
+
+        const workflowResult = await workflowResponse.json()
+        console.log("[Business Card] processing_auth workflow result:", workflowResult)
+
+        // 2. 只有当 Workflow 返回 success 为 true 时，才执行后续操作
+        if (workflowResult.success) {
+          // 2.1 更新本地 mock 数据库
+          await fetch("/api/user/attribute", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              userId: user.userId,
+              attributeName: "is_auth",
+              value: true,
+            }),
+          })
+
+          // 2.2 同步更新 GPTBots 用户属性
+          await fetch("/api/user/gptbots-attribute", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              userId: user.userId,
+              attributeName: "is_auth",
+              value: true,
+            }),
+          })
           
-          const actualIndex = prev.length - 1 - lastAuthMessageIndex
-          return prev.map((m, i) =>
-            i === actualIndex
-              ? { ...m, authCompleted: true } // 只设置 authCompleted，不设置 permitExtractTypes
-              : m
-          )
-        })
-        
-        // 刷新流程图的用户属性状态
-        fetchUserAttributes()
-        
-        // 自动发送用户消息
-        setTimeout(() => {
-          handleSendMessage("我已完成授权，请继续")
-        }, 500)
+          // 2.3 处理 type 100 返回的公积金账户数据
+          // 将 Workflow 返回的账户数据转换为前端需要的格式
+          const accountData = workflowResult.accountData || workflowResult.data
+          let parsedAccountInfo = null
+          
+          if (accountData) {
+            console.log("[Business Card] 解析公积金账户数据:", accountData)
+            // 将 API 返回的字段映射到前端 AccountInfo 格式
+            parsedAccountInfo = parseGjjAccountData(accountData)
+          }
+          
+          // 找到包含 processing_auth 卡片的消息，更新 authCompleted 和账户信息
+          setMessages((prev) => {
+            const lastAuthMessageIndex = [...prev].reverse().findIndex(m => m.llmCardType === "processing_auth")
+            if (lastAuthMessageIndex === -1) return prev
+            
+            const actualIndex = prev.length - 1 - lastAuthMessageIndex
+            return prev.map((m, i) =>
+              i === actualIndex
+                ? { 
+                    ...m, 
+                    authCompleted: true,
+                    // 如果有账户数据，添加到消息中
+                    accountInfo: parsedAccountInfo || m.accountInfo,
+                  }
+                : m
+            )
+          })
+          
+          // 刷新流程图的用户属性状态
+          fetchUserAttributes()
+          
+          // 使用 Workflow 返回的 user_message 发送确认消息
+          const userMessage = workflowResult.userMessage || "我已完成授权，请继续"
+          setTimeout(() => {
+            handleSendMessage(userMessage)
+          }, 500)
+        } else {
+          // Workflow 调用失败，使用返回的 userMessage
+          const errorMessage = workflowResult.userMessage || workflowResult.error || "授权失败，请重试"
+          console.error("[Business Card] Workflow 调用失败:", errorMessage)
+          setTimeout(() => {
+            handleSendMessage(errorMessage)
+          }, 500)
+        }
       } catch (error) {
         console.error("[Business Card] processing_auth error:", error)
       }
     }
     
-    // 手机签约完成
+    // 手机签约完成 (card_type: "sms_sign", type: 1121)
     if (cardType === "sms_sign" && action === "confirm") {
       try {
-        // 手机签约完成: 1015 → 1016 (API 会自动跳转到 1018)
-        const response = await fetch("/api/user/attribute", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            userId: user.userId,
-            attributeName: "phase",
-            value: "1016",
-          }),
-        })
-        const result = await response.json()
-        const newPhase = result.newValue || "1018"
-        console.log("[手机签约] 本地 phase 更新:", newPhase)
-
-        // 同步 phase 到 GPTBots
-        await fetch("/api/user/gptbots-attribute", {
+        // 1. 调用 Workflow API (type: 1121 - 本人手机签约卡片提交)
+        const workflowResponse = await fetch("/api/workflow", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            cardType: "sms_sign",
             userId: user.userId,
-            attributeName: "phase",
-            value: newPhase,
           }),
         })
-        console.log("[手机签约] GPTBots phase 已同步:", newPhase)
 
-        // 刷新流程图的用户属性状态
-        fetchUserAttributes()
-        
-        // 自动发送用户消息
-        handleSendMessage("我已完成手机号签约，请继续")
+        const workflowResult = await workflowResponse.json()
+        console.log("[Business Card] sms_sign workflow result:", workflowResult)
+
+        // 2. 只有当 Workflow 返回 success 为 true 时，才执行后续操作
+        if (workflowResult.success) {
+          // 手机签约完成: 更新 phase
+          const response = await fetch("/api/user/attribute", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              userId: user.userId,
+              attributeName: "sms_signed",
+              value: true,
+            }),
+          })
+          console.log("[手机签约] 本地 sms_signed 更新: true")
+
+          // 同步到 GPTBots
+          await fetch("/api/user/gptbots-attribute", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              userId: user.userId,
+              attributeName: "sms_signed",
+              value: true,
+            }),
+          })
+          console.log("[手机签约] GPTBots sms_signed 已同步")
+
+          // 刷新流程图的用户属性状态
+          fetchUserAttributes()
+          
+          // 使用 Workflow 返回的 user_message 发送确认消息
+          const userMessage = workflowResult.userMessage || "我已完成手机号签约，请继续"
+          handleSendMessage(userMessage)
+        } else {
+          const errorMessage = workflowResult.userMessage || workflowResult.error || "手机签约失败，请重试"
+          console.error("[Business Card] Workflow 调用失败:", errorMessage)
+          handleSendMessage(errorMessage)
+        }
       } catch (error) {
         console.error("[Business Card] sms_sign error:", error)
       }
     }
     
-    // 银行卡签约完成
+    // 银行卡签约完成 (card_type: "bank_sign", type: 1131)
     if (cardType === "bank_sign" && action === "confirm") {
       try {
-        // 银行卡签约完成: 1018 → 1019 (API 会自动跳转到 1029)
-        const response = await fetch("/api/user/attribute", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            userId: user.userId,
-            attributeName: "phase",
-            value: "1019",
-          }),
-        })
-        const result = await response.json()
-        const newPhase = result.newValue || "1029"
-        console.log("[银行卡签约] 本地 phase 更新:", newPhase)
-
-        // 同步 phase 到 GPTBots
-        await fetch("/api/user/gptbots-attribute", {
+        // 1. 调用 Workflow API (type: 1131 - 本人银行卡签约卡片提交)
+        const workflowResponse = await fetch("/api/workflow", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            cardType: "bank_sign",
             userId: user.userId,
-            attributeName: "phase",
-            value: newPhase,
           }),
         })
-        console.log("[银行卡签约] GPTBots phase 已同步:", newPhase)
 
-        // 刷新流程图的用户属性状态
-        fetchUserAttributes()
-        
-        // 自动发送用户消息
-        handleSendMessage("我已完成银行卡签约，请继续")
-    } catch (error) {
+        const workflowResult = await workflowResponse.json()
+        console.log("[Business Card] bank_sign workflow result:", workflowResult)
+
+        // 2. 只有当 Workflow 返回 success 为 true 时，才执行后续操作
+        if (workflowResult.success) {
+          // 银行卡签约完成: 更新 bank_card_signed
+          await fetch("/api/user/attribute", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              userId: user.userId,
+              attributeName: "bank_card_signed",
+              value: true,
+            }),
+          })
+          console.log("[银行卡签约] 本地 bank_card_signed 更新: true")
+
+          // 同步到 GPTBots
+          await fetch("/api/user/gptbots-attribute", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              userId: user.userId,
+              attributeName: "bank_card_signed",
+              value: true,
+            }),
+          })
+          console.log("[银行卡签约] GPTBots bank_card_signed 已同步")
+
+          // 刷新流程图的用户属性状态
+          fetchUserAttributes()
+          
+          // 使用 Workflow 返回的 user_message 发送确认消息
+          const userMessage = workflowResult.userMessage || "我已完成银行卡签约，请继续"
+          handleSendMessage(userMessage)
+        } else {
+          const errorMessage = workflowResult.userMessage || workflowResult.error || "银行卡签约失败，请重试"
+          console.error("[Business Card] Workflow 调用失败:", errorMessage)
+          handleSendMessage(errorMessage)
+        }
+      } catch (error) {
         console.error("[Business Card] bank_sign error:", error)
       }
+    }
+  }
+
+  // 解析公积金账户数据（从 Workflow API 返回的格式转换为前端 AccountInfo 格式）
+  const parseGjjAccountData = (data: Record<string, unknown>): Record<string, unknown> | null => {
+    if (!data) return null
+    
+    try {
+      // 将 API 返回的字段映射到前端需要的格式
+      return {
+        personalAccount: data.grzh || "",
+        openDate: data.khrq ? String(data.khrq).substring(0, 10).replace(/(\d{4})(\d{2})(\d{2})/, "$1-$2-$3") : "",
+        paidUntil: data.JZNY || "",
+        idType: data.zjlx === "01" ? "身份证" : "其他",
+        idNumber: data.zjhm || "",
+        residence: data.jtzz || "",
+        maritalStatus: data.hyzk === "20" ? "已婚" : data.hyzk === "10" ? "未婚" : "其他",
+        phone: data.sjhm || "",
+        bankName: data.styhmc || "",
+        bankAccount: data.yhzh || "",
+        accountType: data.zhlx === "01" ? "公积金账户" : "其他",
+        accountStatus: data.grzhzt === "01" ? "正常" : data.grzhzt === "02" ? "封存" : "其他",
+        sealDate: data.fcrq || null,
+        depositBase: Number(data.grjcjs) || 0,
+        personalRate: `${data.grjcbl || 0}%`,
+        personalAmount: Number(data.gryjce) || 0,
+        companyRate: `${data.dwjcbl || 0}%`,
+        companyAmount: Number(data.dwyjce) || 0,
+        companyName: data.dwmc || "",
+        companyAccount: data.dwzh || "",
+        totalBalance: Number(data.zhye) || 0,
+        // 配偶信息
+        spouseName: data.poxm || null,
+        spouseIdNumber: data.pozjhm || null,
+        // 原始数据
+        rawData: data,
+      }
+    } catch (error) {
+      console.error("[parseGjjAccountData] 解析失败:", error)
+      return null
     }
   }
 
