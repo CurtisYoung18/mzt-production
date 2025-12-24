@@ -47,30 +47,22 @@ export default function SignCard({ message, userInfo, userId, signType, onConfir
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          cardType: "prefill_info", // 使用特殊的 cardType 标识获取预填信息
-          userId: userId,
           type: 100, // 个人与配偶信息查询
+          userId: userId,
         }),
       })
 
       const result = await response.json()
       console.log("[SignCard] 预填信息获取结果:", result)
 
-      if (result.success && result.data) {
-        // 解析返回的数据
-        let data = result.data
-        if (typeof data === 'string') {
-          try {
-            data = JSON.parse(data)
-          } catch {
-            console.error("[SignCard] 解析预填数据失败")
-          }
-        }
+      // type=100 返回 display_info 字段 (已解析为对象)
+      if (result.success && result.display_info) {
+        const data = result.display_info
 
         setPrefillInfo({
-          name: data.xingming || data.name || userInfo.name,
-          idNumber: data.zjhm || data.idNumber || userInfo.idNumber,
-          phone: data.sjhm || data.phone || userInfo.phone,
+          name: data.xingming || userInfo.name,
+          idNumber: data.zjhm || userInfo.idNumber,
+          phone: data.sjhm || userInfo.phone,
           spouseName: data.poxm || '',
           spouseIdNumber: data.pozjhm || '',
           spousePhone: data.podh || '',

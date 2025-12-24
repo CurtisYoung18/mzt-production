@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { motion } from "framer-motion"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
@@ -212,6 +212,73 @@ const MARITAL_STATUS_MAP: Record<string, string> = {
   "90": "其他",
 }
 
+// 从 workflow type=200 返回的数据解析账户信息
+function parseWorkflowAccountData(data: Record<string, unknown>): AccountInfo | null {
+  if (!data) return null
+  
+  // 转换代码为可读文本
+  const zjlx = String(data.zjlx || '01')
+  const grzhzt = String(data.grzhzt || '01')
+  const hyzk = String(data.hyzk || '')
+  
+  const idType = ID_TYPE_MAP[zjlx] || '居民身份证'
+  const accountStatus = ACCOUNT_STATUS_MAP[grzhzt] || '正常'
+  const maritalStatus = MARITAL_STATUS_MAP[hyzk] || ''
+  
+  // 格式化日期
+  const formatDate = (str: string): string => {
+    if (!str) return ''
+    const cleaned = str.replace(/\D/g, '')
+    if (cleaned.length >= 8) {
+      return `${cleaned.slice(0, 4)}-${cleaned.slice(4, 6)}-${cleaned.slice(6, 8)}`
+    }
+    return str
+  }
+  
+  const formatYearMonth = (str: string): string => {
+    if (!str) return ''
+    const cleaned = str.replace(/\D/g, '')
+    if (cleaned.length >= 6) {
+      return `${cleaned.slice(0, 4)}-${cleaned.slice(4, 6)}`
+    }
+    return str
+  }
+  
+  const personalAmount = parseFloat(String(data.gryjce || '0')) || 0
+  const companyAmount = parseFloat(String(data.dwyjce || '0')) || 0
+  
+  return {
+    personalAccount: String(data.grzh || ''),
+    openDate: formatDate(String(data.khrq || '')),
+    paidUntil: formatYearMonth(String(data.JZNY || '')),
+    idType: idType,
+    idNumber: String(data.zjhm || ''),
+    residence: data.xhj === '1' ? '本地' : '',
+    maritalStatus: maritalStatus,
+    phone: String(data.sjhm || ''),
+    bankName: String(data.styhmc || ''),
+    bankAccount: String(data.yhzh || ''),
+    accountType: data.zhlx === '01' ? '公积金账户' : '公积金账户',
+    accountStatus: accountStatus,
+    sealDate: formatDate(String(data.fcrq || '')),
+    depositBase: parseFloat(String(data.grjcjs || '0')) || 0,
+    personalRate: data.grjcbl ? `${data.grjcbl}%` : '',
+    personalAmount: personalAmount,
+    companyRate: data.dwjcbl ? `${data.dwjcbl}%` : '',
+    companyAmount: companyAmount,
+    companyName: String(data.dwmc || ''),
+    companyAccount: String(data.dwzh || ''),
+    // 扩展字段
+    name: String(data.xingming || ''),
+    totalBalance: parseFloat(String(data.zhye || '0')) || 0,
+    spouseName: String(data.poxm || ''),
+    spouseIdNumber: String(data.pozjhm || ''),
+    address: String(data.jtzz || ''),
+    totalInterest: parseFloat(String(data.ljlxje || '0')) || 0,
+    monthlyDeposit: personalAmount + companyAmount,
+  }
+}
+
 // 格式化日期：20020404000000 -> 2002-04-04
 function formatDate(dateStr: string): string {
   if (!dateStr) return ''
@@ -363,7 +430,57 @@ export default function MessageCard({
   // 检查是否为业务卡片类型
   const isBusinessCard = parsedResponse?.card_type && BUSINESS_CARD_TYPES.includes(parsedResponse.card_type)
   
-  // 从 card_message 解析账户信息（用于 account_info 卡片）
+  // 从 workflow type=200 获取的账户信息
+  const [workflowAccountInfo, setWorkflowAccountInfo] = useState<AccountInfo | null>(null)
+  const [isLoadingAccountInfo, setIsLoadingAccountInfo] = useState(false)
+  
+  // 当 card_type 为 account_info 时，调用 workflow type=200 获取数据
+  useEffect(() => {
+    const fetchAccountInfo = async () => {
+      if (parsedResponse?.card_type === 'account_info' && !workflowAccountInfo && !isLoadingAccountInfo) {
+        setIsLoadingAccountInfo(true)
+        try {
+          const response = await fetch("/api/workflow", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              type: 200, // 账户信息查询
+              userId: userId,
+            }),
+          })
+
+          const result = await response.json()
+          console.log("[MessageCard] 账户信息获取结果:", result)
+
+          // type=200 返回 data 字段
+          if (result.success && result.data) {
+            let data = result.data
+            if (typeof data === 'string') {
+              try {
+                data = JSON.parse(data)
+              } catch {
+                console.error("[MessageCard] 解析账户信息失败")
+              }
+            }
+            
+            // 将 workflow 返回的数据转换为 AccountInfo 格式
+            const accountInfo = parseWorkflowAccountData(data)
+            if (accountInfo) {
+              setWorkflowAccountInfo(accountInfo)
+            }
+          }
+        } catch (error) {
+          console.error("[MessageCard] 获取账户信息失败:", error)
+        } finally {
+          setIsLoadingAccountInfo(false)
+        }
+      }
+    }
+    
+    fetchAccountInfo()
+  }, [parsedResponse?.card_type, userId, workflowAccountInfo, isLoadingAccountInfo])
+  
+  // 从 card_message 解析账户信息（作为 fallback）
   const parsedAccountInfo = useMemo(() => {
     if (parsedResponse?.card_type === 'account_info' && parsedResponse.card_message) {
       return parseAccountInfoFromCardMessage(parsedResponse.card_message)
@@ -371,8 +488,8 @@ export default function MessageCard({
     return null
   }, [parsedResponse?.card_type, parsedResponse?.card_message])
   
-  // 使用 message.accountInfo 或从 card_message 解析的账户信息
-  const accountInfoToUse = message.accountInfo || parsedAccountInfo
+  // 优先使用 workflow 返回的数据，其次是 card_message 解析的，最后是 message.accountInfo
+  const accountInfoToUse = workflowAccountInfo || message.accountInfo || parsedAccountInfo
 
   // Show querying animation for data queries (e.g., account info)
   if (message.isQuerying && !accountInfoToUse && !message.content) {

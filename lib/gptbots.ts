@@ -39,14 +39,21 @@ async function fetchWithSSLBypass(
     }
 
     const req = httpModule.request(requestOptions, (res) => {
-      const chunks: Buffer[] = []
+      const chunks: Uint8Array[] = []
       
-      res.on("data", (chunk) => {
-        chunks.push(chunk)
+      res.on("data", (chunk: Buffer) => {
+        chunks.push(new Uint8Array(chunk))
       })
 
       res.on("end", () => {
-        const body = Buffer.concat(chunks)
+        // Concatenate all chunks into a single Uint8Array
+        const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0)
+        const body = new Uint8Array(totalLength)
+        let offset = 0
+        for (const chunk of chunks) {
+          body.set(chunk, offset)
+          offset += chunk.length
+        }
         
         // Create a Response-like object
         const response = new Response(body, {
@@ -422,10 +429,15 @@ export function parseStreamEvent(line: string): StreamEvent | null {
 
 // 卡片类型到 type 值的映射（租房提取流程）
 export const CARD_TYPE_TO_WORKFLOW_TYPE: Record<string, number> = {
-  "auth": 1,                    // 用户授权卡片提交
-  "processing_auth": 100,       // 个人与配偶信息查询
-  "spouse_sign": 1071,          // 配偶签约卡片提交
-  "spouse_auth": 1081,          // 配偶授权卡片提交
+  "user_unauth": 1,             // 用户授权卡片提交
+  "auth": 1,                    // 用户授权卡片提交 (兼容旧名称)
+  "prefill_info": 100,          // 个人与配偶信息查询 (用于签约预填)
+  "processing_auth": 100,       // 个人与配偶信息查询 (兼容旧名称)
+  "account_info": 200,          // 账户信息查询 (type=200)
+  "mate_sms": 1071,             // 配偶手机签约卡片提交
+  "mate_sign": 1081,            // 配偶授权卡片提交
+  "spouse_sign": 1071,          // 配偶签约卡片提交 (兼容旧名称)
+  "spouse_auth": 1081,          // 配偶授权卡片提交 (兼容旧名称)
   "sms_sign": 1121,             // 本人手机签约卡片提交
   "bank_sign": 1131,            // 本人银行卡签约卡片提交
   "extract_submit": 1132,       // 提取提交卡片提交
@@ -448,7 +460,8 @@ export interface WorkflowRawResponse {
     type: number
   }
   output?: {
-    data: string // JSON 字符串，包含实际业务数据
+    data?: string // JSON 字符串，包含实际业务数据 (type=200 返回)
+    display_info?: string // JSON 字符串，包含预填信息 (type=100 返回)
     is_attr_changed?: boolean
     user_message?: string
   }
@@ -465,7 +478,8 @@ export interface WorkflowResponse {
   success: boolean // 是否成功
   userMessage?: string // 用户消息（用于自动发送）
   isAttrChanged?: boolean // 是否属性发生变化
-  data?: Record<string, unknown> // 解析后的业务数据
+  data?: Record<string, unknown> // 解析后的业务数据 (type=200)
+  displayInfo?: Record<string, unknown> // 解析后的预填信息 (type=100)
   rawResponse?: WorkflowRawResponse // 原始响应
 }
 
@@ -577,32 +591,45 @@ export async function callWorkflowAPI(request: WorkflowRequest): Promise<Workflo
         }
       }
       
-      // 解析 output.data（JSON 字符串）
+      // 解析 output.data（JSON 字符串）- type=200 账户信息
       let parsedData: Record<string, unknown> = {}
       if (output.data) {
         try {
           parsedData = JSON.parse(output.data)
-          console.log("[Workflow API] 解析后的业务数据:", JSON.stringify(parsedData, null, 2).substring(0, 500))
+          console.log("[Workflow API] 解析后的业务数据 (data):", JSON.stringify(parsedData, null, 2).substring(0, 500))
         } catch (parseDataError) {
           console.error("[Workflow API] ⚠️ 解析 output.data 失败:", parseDataError)
+        }
+      }
+      
+      // 解析 output.display_info（JSON 字符串）- type=100 预填信息
+      let parsedDisplayInfo: Record<string, unknown> = {}
+      if (output.display_info) {
+        try {
+          parsedDisplayInfo = JSON.parse(output.display_info)
+          console.log("[Workflow API] 解析后的预填信息 (display_info):", JSON.stringify(parsedDisplayInfo, null, 2).substring(0, 500))
+        } catch (parseDisplayInfoError) {
+          console.error("[Workflow API] ⚠️ 解析 output.display_info 失败:", parseDisplayInfoError)
         }
       }
       
       // 检查业务状态（code 字段）
       const code = parsedData.code as number | undefined
       const isEligible = parsedData.is_eligible as boolean | undefined
-      const displayInfo = parsedData.display_info as string | undefined
       
-      // 判断是否成功：code 为 0 或 is_eligible 为 true
-      const isSuccess = code === 0 || isEligible === true
+      // 判断是否成功：
+      // - code 为 0 或 is_eligible 为 true
+      // - 或者有 display_info/data 返回（type=100/200 查询场景）
+      const isSuccess = code === 0 || isEligible === true || Object.keys(parsedDisplayInfo).length > 0 || Object.keys(parsedData).length > 0
       
       console.log("[Workflow API] 业务状态 - code:", code, "is_eligible:", isEligible, "成功:", isSuccess)
       
       return {
         success: isSuccess,
-        userMessage: output.user_message || displayInfo,
+        userMessage: output.user_message,
         isAttrChanged: output.is_attr_changed,
-        data: parsedData,
+        data: Object.keys(parsedData).length > 0 ? parsedData : undefined,
+        displayInfo: Object.keys(parsedDisplayInfo).length > 0 ? parsedDisplayInfo : undefined,
         rawResponse,
       }
     } catch (parseError) {

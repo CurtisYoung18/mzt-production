@@ -26,10 +26,11 @@ export async function POST(request: NextRequest) {
       type: type !== undefined ? type : undefined,
     }
 
+    const actualType = type ?? CARD_TYPE_TO_WORKFLOW_TYPE[cardType]
     console.log("[Workflow API Route] 调用 Workflow:", {
       cardType,
       userId,
-      type: type ?? CARD_TYPE_TO_WORKFLOW_TYPE[cardType],
+      type: actualType,
     })
 
     const result = await callWorkflowAPI(workflowRequest)
@@ -39,17 +40,32 @@ export async function POST(request: NextRequest) {
       userMessage: result.userMessage,
       isAttrChanged: result.isAttrChanged,
       hasData: !!result.data,
+      hasDisplayInfo: !!result.displayInfo,
     })
 
-    // 返回完整的响应信息
-    return NextResponse.json({
+    // 返回响应
+    // type=100: 返回 display_info (用于签约预填写) - 直接返回解析后的对象
+    // type=200: 返回 data (用于 account_info 卡片)
+    // 其他 type: 返回 data
+    
+    const responseData: Record<string, unknown> = {
       success: result.success,
       userMessage: result.userMessage,
       isAttrChanged: result.isAttrChanged,
-      data: result.data,
-      // 如果是 type 100（个人与配偶信息查询），返回账户数据
-      accountData: cardType === "processing_auth" || type === 100 ? result.data : undefined,
-    })
+    }
+    
+    if (actualType === 100 && result.displayInfo) {
+      // type=100 返回 display_info 字段 (用于签约预填写)
+      // 直接返回解析后的对象，让前端直接使用
+      responseData.display_info = result.displayInfo
+    }
+    
+    if (result.data) {
+      // 返回 data 字段 (用于 account_info 卡片等)
+      responseData.data = result.data
+    }
+
+    return NextResponse.json(responseData)
   } catch (error) {
     console.error("[Workflow API Route] ❌ 错误:", error)
     const errorMessage = error instanceof Error ? error.message : "未知错误"
@@ -63,4 +79,3 @@ export async function POST(request: NextRequest) {
     )
   }
 }
-
