@@ -12,6 +12,7 @@ interface SignCardProps {
   signType: "phone" | "bank" // 明确指定签约类型
   onConfirm: () => void
   className?: string
+  isSpouse?: boolean // 是否是配偶签约
 }
 
 // 判断是手机签约还是银行卡签约（备用，现在由 signType prop 直接指定）
@@ -22,7 +23,7 @@ function getSignType(message: string): "phone" | "bank" {
   return "bank"
 }
 
-export default function SignCard({ message, userInfo, signType, onConfirm, className }: SignCardProps) {
+export default function SignCard({ message, userInfo, signType, onConfirm, className, isSpouse = false }: SignCardProps) {
   const [isFlipped, setIsFlipped] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isComplete, setIsComplete] = useState(false)
@@ -30,6 +31,7 @@ export default function SignCard({ message, userInfo, signType, onConfirm, class
   const confirmButtonRef = useRef<HTMLDivElement>(null)
 
   const isPhone = signType === "phone"
+  const personLabel = isSpouse ? "配偶" : "本人"
 
   const handleGoSign = () => {
     setIsFlipped(true)
@@ -153,10 +155,12 @@ export default function SignCard({ message, userInfo, signType, onConfirm, class
                 )}
               </motion.div>
               <h3 className="text-lg font-semibold">
-                {isPhone ? "手机号签约" : "银行卡签约"}
+                {personLabel}{isPhone ? "手机号签约" : "银行卡签约"}
               </h3>
               <p className="text-sm text-white/80 mt-1">
-                {isPhone ? "绑定您的手机号码以接收通知" : "绑定您的银行卡以接收提取款项"}
+                {isPhone 
+                  ? `绑定${personLabel}的手机号码以接收通知` 
+                  : `绑定${personLabel}的银行卡以接收提取款项`}
               </p>
             </div>
 

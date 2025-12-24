@@ -18,6 +18,8 @@ interface AuthCardProps {
   permitExtractTypes?: string[]
   // 点击提取类型时的回调
   onSelectExtractType?: (type: string) => void
+  // 是否是配偶授权
+  isSpouse?: boolean
 }
 
 export default function AuthCard({ 
@@ -27,8 +29,10 @@ export default function AuthCard({
   isProcessingAuth = false,
   authCompleted = false,
   permitExtractTypes = [],
-  onSelectExtractType
+  onSelectExtractType,
+  isSpouse = false
 }: AuthCardProps) {
+  const personLabel = isSpouse ? "配偶" : "本人"
   const [agreed, setAgreed] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showSuccess, setShowSuccess] = useState(authCompleted)
@@ -126,7 +130,7 @@ export default function AuthCard({
       {/* Header */}
       <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800">
         <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 text-center">
-          个人信息查询报送授权书
+          {isSpouse ? "配偶" : ""}个人信息查询报送授权书
         </h3>
       </div>
 

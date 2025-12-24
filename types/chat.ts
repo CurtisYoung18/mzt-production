@@ -1,18 +1,48 @@
 // LLM 返回的结构化响应格式
 // 通用提示卡片类型
-export type LLMAlertCardType = "warning" | "success" | "info" | "error"
-// 业务流程卡片类型
-// processing_auth: 查询公积金时的授权（授权后只显示"授权成功"，不显示提取业务选项）
-// auth: 提取流程中的授权（授权后显示可办理的提取业务）
+export type LLMAlertCardType = "warning" | "success" | "info" | "error" | "fail"
+
+// 业务流程卡片类型（根据 doc/提取流程 - 阶段字典.md）
+// user_unauth: 用户未授权，需要进行授权
 // account_info: 公积金账户信息查询结果
-export type LLMBusinessCardType = "auth" | "processing_auth" | "sms_sign" | "bank_sign" | "finish" | "gjj_details" | "account_info"
+// pf_list: 公积金类型列表选择
+// mate_sms: 配偶手机签约
+// mate_sign: 配偶授权
+// children_select: 多孩家庭选择
+// sms_sign: 本人手机签约
+// bank_sign: 本人银行卡签约
+// finish: 满足提取条件，展示可提取信息
+// history_list: 提取记录列表
+export type LLMBusinessCardType = 
+  | "user_unauth"      // 用户未授权
+  | "account_info"     // 公积金账户信息
+  | "pf_list"          // 公积金类型选择
+  | "mate_sms"         // 配偶手机签约
+  | "mate_sign"        // 配偶授权
+  | "children_select"  // 多孩家庭选择
+  | "sms_sign"         // 本人手机签约
+  | "bank_sign"        // 本人银行卡签约
+  | "finish"           // 完成/满足提取条件
+  | "history_list"     // 提取记录
+  // 兼容旧类型
+  | "auth"             // 授权（兼容）
+  | "processing_auth"  // 查询授权（兼容）
+  | "gjj_details"      // 公积金详情（兼容）
+
 // 所有卡片类型
 export type LLMCardType = LLMAlertCardType | LLMBusinessCardType | null
+
+// 公积金类型选项（用于 pf_list 卡片）
+export interface PfListItem {
+  pf_id: string
+  pf_name: string
+}
 
 export interface LLMResponse {
   card_type?: LLMCardType
   card_message?: string
   content: string
+  pf_list?: PfListItem[]  // 公积金类型列表（仅 pf_list 卡片使用）
 }
 
 // 用户基本信息（用于卡片显示）

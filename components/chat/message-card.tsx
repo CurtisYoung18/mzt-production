@@ -17,8 +17,23 @@ import AuthCard from "./auth-card"
 import SignCard from "./sign-card"
 import FinishCard from "./finish-card"
 
-// 业务卡片类型
-const BUSINESS_CARD_TYPES = ["auth", "processing_auth", "sms_sign", "bank_sign", "finish", "gjj_details", "account_info"]
+// 业务卡片类型（根据 doc/提取流程 - 阶段字典.md）
+const BUSINESS_CARD_TYPES = [
+  "user_unauth",      // 用户未授权
+  "account_info",     // 公积金账户信息
+  "pf_list",          // 公积金类型选择
+  "mate_sms",         // 配偶手机签约
+  "mate_sign",        // 配偶授权
+  "children_select",  // 多孩家庭选择
+  "sms_sign",         // 本人手机签约
+  "bank_sign",        // 本人银行卡签约
+  "finish",           // 完成
+  "history_list",     // 提取记录
+  // 兼容旧类型
+  "auth",
+  "processing_auth",
+  "gjj_details",
+]
 
 interface MessageCardProps {
   message: Message
@@ -676,7 +691,7 @@ export default function MessageCard({
         />
       )}
       
-      {/* Business Card - 完成卡片 */}
+      {/* Business Card - 完成卡片 (card_type: "finish") */}
       {llmCardType === "finish" && llmCardMessage && (
         <FinishCard
           message={llmCardMessage}
@@ -687,8 +702,139 @@ export default function MessageCard({
         />
       )}
       
+      {/* Business Card - 用户未授权卡片 (card_type: "user_unauth") */}
+      {llmCardType === "user_unauth" && userInfo && onBusinessCardAction && !message.authCompleted && (
+        <AuthCard
+          userInfo={userInfo}
+          onConfirm={() => onBusinessCardAction("user_unauth", "confirm")}
+          isProcessingAuth={false}
+          permitExtractTypes={message.permitExtractTypes}
+          onSelectExtractType={onSendMessage}
+        />
+      )}
+      
+      {/* Business Card - 配偶手机签约卡片 (card_type: "mate_sms") */}
+      {llmCardType === "mate_sms" && llmCardMessage && userInfo && onBusinessCardAction && (
+        <SignCard
+          message={llmCardMessage}
+          userInfo={userInfo}
+          signType="phone"
+          isSpouse={true}
+          onConfirm={() => onBusinessCardAction("mate_sms", "confirm")}
+        />
+      )}
+      
+      {/* Business Card - 配偶授权卡片 (card_type: "mate_sign") */}
+      {llmCardType === "mate_sign" && userInfo && onBusinessCardAction && !message.authCompleted && (
+        <AuthCard
+          userInfo={userInfo}
+          onConfirm={() => onBusinessCardAction("mate_sign", "confirm")}
+          isProcessingAuth={false}
+          isSpouse={true}
+        />
+      )}
+      
+      {/* Business Card - 公积金类型选择列表 (card_type: "pf_list") */}
+      {llmCardType === "pf_list" && llmCardMessage && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-950/30 dark:to-cyan-950/30 border border-blue-200 dark:border-blue-800 rounded-2xl p-4 max-w-md"
+        >
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center">
+              <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+            </div>
+            <span className="text-sm font-medium text-blue-700 dark:text-blue-300">{llmCardMessage}</span>
+          </div>
+          {message.permitExtractTypes && message.permitExtractTypes.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {message.permitExtractTypes.map((type, index) => (
+                <motion.button
+                  key={type}
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: index * 0.1 }}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => onSendMessage?.(`我要办理${type}提取`)}
+                  className="px-4 py-2 bg-white dark:bg-gray-800 border border-blue-300 dark:border-blue-700 rounded-full text-sm font-medium text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/50 hover:border-blue-400 transition-all shadow-sm"
+                >
+                  {type}提取
+                </motion.button>
+              ))}
+            </div>
+          )}
+        </motion.div>
+      )}
+      
+      {/* Business Card - 多孩家庭选择 (card_type: "children_select") */}
+      {llmCardType === "children_select" && llmCardMessage && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950/30 dark:to-pink-950/30 border border-purple-200 dark:border-purple-800 rounded-2xl p-4 max-w-md"
+        >
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-6 h-6 rounded-full bg-purple-500 flex items-center justify-center">
+              <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+            </div>
+            <span className="text-sm font-medium text-purple-700 dark:text-purple-300">多孩家庭提示</span>
+          </div>
+          <p className="text-sm text-purple-600 dark:text-purple-400">{llmCardMessage}</p>
+        </motion.div>
+      )}
+      
+      {/* Business Card - 提取记录列表 (card_type: "history_list") */}
+      {llmCardType === "history_list" && llmCardMessage && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 border border-green-200 dark:border-green-800 rounded-2xl p-4 max-w-md"
+        >
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center">
+              <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <span className="text-sm font-medium text-green-700 dark:text-green-300">提取成功</span>
+          </div>
+          <p className="text-sm text-green-600 dark:text-green-400 mb-3">{llmCardMessage}</p>
+          <button
+            onClick={onViewRecords}
+            className="w-full px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors"
+          >
+            查看提取记录
+          </button>
+        </motion.div>
+      )}
+      
+      {/* Fail Card (card_type: "fail") - 失败/校验不通过 */}
+      {llmCardType === "fail" && llmCardMessage && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-950/30 dark:to-orange-950/30 border border-red-200 dark:border-red-800 rounded-2xl p-4 max-w-md"
+        >
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-6 h-6 rounded-full bg-red-500 flex items-center justify-center">
+              <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <span className="text-sm font-medium text-red-700 dark:text-red-300">无法办理</span>
+          </div>
+          <p className="text-sm text-red-600 dark:text-red-400">{llmCardMessage}</p>
+        </motion.div>
+      )}
+      
       {/* LLM Alert Card (warning/success/info/error) */}
-      {llmCardType && !isBusinessCard && llmCardMessage && (
+      {llmCardType && !isBusinessCard && llmCardType !== "fail" && llmCardMessage && (
         <LLMCard
           type={llmCardType}
           message={llmCardMessage}
