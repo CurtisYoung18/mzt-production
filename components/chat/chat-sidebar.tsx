@@ -5,9 +5,10 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { PlusCircle, Clock, Trash2, LogOut, ChevronRight, ChevronLeft, Search, FileText, Home, Building2, Timer } from "lucide-react"
-import type { ChatSession } from "@/types/chat"
+import type { ChatSession, LLMCardType } from "@/types/chat"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
+import ExtractFlowChart from "./extract-flow-chart"
 
 interface User {
   userId: string
@@ -27,6 +28,7 @@ interface ChatSidebarProps {
   onAccountQuery?: () => void
   onExtraction?: (type: string) => void
   showQuickActions?: boolean
+  currentCardType?: LLMCardType // 当前卡片类型，用于点亮流程图
 }
 
 const USER_AVATAR = "https://img.icons8.com/color/96/user-male-circle--v1.png"
@@ -53,6 +55,7 @@ export default function ChatSidebar({
   onAccountQuery,
   onExtraction,
   showQuickActions = false,
+  currentCardType,
 }: ChatSidebarProps) {
   const router = useRouter()
   const [showExtractionOptions, setShowExtractionOptions] = useState(false)
@@ -187,6 +190,13 @@ export default function ChatSidebar({
                       </AnimatePresence>
                     </div>
                   </div>
+                </div>
+              )}
+
+              {/* 流程图 - 通过 card_type 点亮 */}
+              {currentCardType && (
+                <div className="px-3">
+                  <ExtractFlowChart currentCardType={currentCardType} />
                 </div>
               )}
 

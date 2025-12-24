@@ -555,7 +555,8 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
               return {
                 card_type: parsed.card_type,
                 card_message: parsed.card_message,
-                content: parsed.content || ''
+                content: parsed.content || '',
+                pf_list: parsed.pf_list || undefined, // 公积金类型列表
               }
             }
           } catch {
@@ -604,6 +605,7 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
                   // Add LLM card fields if present (only on final)
                   llmCardType: llmResponse?.card_type || undefined,
                   llmCardMessage: llmResponse?.card_message || undefined,
+                  pfList: llmResponse?.pf_list || undefined, // 公积金类型列表
                 }
               : m
           )
@@ -754,6 +756,7 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
         onAccountQuery={handleAccountQuery}
         onExtraction={handleSendMessage}
         showQuickActions={messages.length > 1}
+        currentCardType={messages.filter(m => m.llmCardType).pop()?.llmCardType}
       />
       <ChatMain
         messages={messages}

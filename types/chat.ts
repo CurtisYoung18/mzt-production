@@ -67,6 +67,7 @@ export interface Message {
   // LLM 结构化卡片
   llmCardType?: LLMCardType
   llmCardMessage?: string
+  pfList?: PfListItem[] // 公积金类型列表（pf_list 卡片使用）
   // 授权完成后显示可用的提取类型
   authCompleted?: boolean
   permitExtractTypes?: string[]

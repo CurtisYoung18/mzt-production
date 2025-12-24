@@ -100,7 +100,8 @@ function parseLLMResponse(content: string): LLMResponse | null {
         return {
           card_type: parsed.card_type || null,
           card_message: parsed.card_message || '',
-          content: parsed.content || ''
+          content: parsed.content || '',
+          pf_list: parsed.pf_list || undefined, // 解析公积金类型列表
         }
       }
     } catch {
@@ -114,7 +115,8 @@ function parseLLMResponse(content: string): LLMResponse | null {
     return {
       card_type: (extracted.json.card_type as LLMCardType) || null,
       card_message: (extracted.json.card_message as string) || '',
-      content: (extracted.json.content as string) || ''
+      content: (extracted.json.content as string) || '',
+      pf_list: (extracted.json.pf_list as LLMResponse['pf_list']) || undefined,
     }
   }
   
@@ -354,12 +356,13 @@ export default function MessageCard({
       return {
         card_type: message.llmCardType,
         card_message: message.llmCardMessage || '',
-        content: message.content
+        content: message.content,
+        pf_list: message.pfList, // 使用消息中存储的 pfList
       } as LLMResponse
     }
     // 尝试从 content 中解析 JSON
     return parseLLMResponse(message.content)
-  }, [message.content, message.llmCardType, message.llmCardMessage])
+  }, [message.content, message.llmCardType, message.llmCardMessage, message.pfList])
   
   // 检查是否为业务卡片类型
   const isBusinessCard = parsedResponse?.card_type && BUSINESS_CARD_TYPES.includes(parsedResponse.card_type)
@@ -735,7 +738,7 @@ export default function MessageCard({
       )}
       
       {/* Business Card - 公积金类型选择列表 (card_type: "pf_list") */}
-      {llmCardType === "pf_list" && llmCardMessage && (
+      {llmCardType === "pf_list" && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -747,22 +750,25 @@ export default function MessageCard({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
               </svg>
             </div>
-            <span className="text-sm font-medium text-blue-700 dark:text-blue-300">{llmCardMessage}</span>
+            <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
+              {llmCardMessage || "请选择要提取的公积金类型"}
+            </span>
           </div>
-          {message.permitExtractTypes && message.permitExtractTypes.length > 0 && (
+          {/* 从 pf_list 字段渲染可提取类型 */}
+          {parsedResponse?.pf_list && parsedResponse.pf_list.length > 0 && (
             <div className="flex flex-wrap gap-2">
-              {message.permitExtractTypes.map((type, index) => (
+              {parsedResponse.pf_list.map((item, index) => (
                 <motion.button
-                  key={type}
+                  key={item.pf_id}
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: index * 0.1 }}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  onClick={() => onSendMessage?.(`我要办理${type}提取`)}
+                  onClick={() => onSendMessage?.(`我要办理${item.pf_name}`)}
                   className="px-4 py-2 bg-white dark:bg-gray-800 border border-blue-300 dark:border-blue-700 rounded-full text-sm font-medium text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/50 hover:border-blue-400 transition-all shadow-sm"
                 >
-                  {type}提取
+                  {item.pf_name}
                 </motion.button>
               ))}
             </div>
