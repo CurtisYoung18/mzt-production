@@ -29,6 +29,7 @@ interface FinishCardProps {
   onContinueChat?: () => void
   onEndChat?: (rating: number) => void
   onSubmitSuccess?: () => void // 提交成功回调
+  onSendMessage?: (content: string) => void // 发送消息到聊天
   className?: string
 }
 
@@ -51,6 +52,7 @@ export default function FinishCard({
   onContinueChat,
   onEndChat,
   onSubmitSuccess,
+  onSendMessage,
   className 
 }: FinishCardProps) {
   const [stage, setStage] = useState<CardStage>("details")
@@ -122,18 +124,33 @@ export default function FinishCard({
         const result = await response.json()
         console.log("[FinishCard] 提取提交结果:", result)
         
-        // 只有当 is_eligible = true 时才显示成功页面
-        if (result.is_eligible === true) {
+        // 检查 success 字段判断是否成功
+        if (result.success === true) {
           setStage("success")
           onSubmitSuccess?.() // 通知父组件提交成功
         } else {
-          // is_eligible 不为 true，显示失败/待审核状态
-          console.log("[FinishCard] 提交未通过:", result.userMessage || "is_eligible 不为 true")
-          // 保持在验证状态或回到详情页
+          // 提交失败，显示错误并发送 userMessage 到聊天
+          const errorMessage = result.userMessage || "提交失败，请重试"
+          console.log("[FinishCard] 提交未通过:", errorMessage)
+          
+          // 发送 userMessage 到聊天
+          if (onSendMessage && result.userMessage) {
+            setTimeout(() => {
+              onSendMessage(result.userMessage)
+            }, 500)
+          }
+          
+          // 回到详情页
           setStage("details")
         }
       } catch (error) {
         console.error("[FinishCard] 提交出错:", error)
+        // 出错时发送错误消息
+        if (onSendMessage) {
+          setTimeout(() => {
+            onSendMessage("提交过程中出现错误，请稍后重试")
+          }, 500)
+        }
         // 出错回到详情页
         setStage("details")
       }

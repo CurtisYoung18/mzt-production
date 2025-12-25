@@ -34,7 +34,8 @@ export default function ThinkingProcess({ thinking, isComplete = false, classNam
     }
   }, [thinking, isExpanded, isComplete])
 
-  if (!thinking) return null
+  // 思考完成后完全隐藏
+  if (!thinking || isComplete) return null
 
   return (
     <div

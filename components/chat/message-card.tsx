@@ -766,6 +766,7 @@ export default function MessageCard({
           onContinueChat={onContinueChat}
           onEndChat={onEndChat}
           onSubmitSuccess={onSubmitSuccess}
+          onSendMessage={onSendMessage}
         />
       )}
       

@@ -736,6 +736,9 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
                   // Stream ended - process any remaining buffer
                   processTextChunk("", true) // Flush buffer
                   
+                  // 流结束时，标记思考完成
+                  thinkingComplete = true
+                  
                   // Clean up any remaining tags or partial tags
                   // Remove </think> and any trailing partial tags like </think
                   thinkingContent = thinkingContent
@@ -776,6 +779,9 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
 
       // Final processing if stream ended without End event
       processTextChunk("", true)
+      
+      // 流结束时，标记思考完成
+      thinkingComplete = true
       
       // Clean up any remaining tags
       thinkingContent = thinkingContent
