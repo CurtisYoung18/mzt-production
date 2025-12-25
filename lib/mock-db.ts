@@ -4,55 +4,79 @@
  * 业务流程数据由 Agent 和 Workflow API 管理
  */
 
-// 用户数据 - 通过序号登录
+// 用户数据 - 通过手机号+密码登录
 export const mockUsers = [
   {
     id: 1,
     user_id: "szsfpt020251223173845080a5245392",
-    name: "测试用户1",
-    id_card: "350102199001011234",
-    phone: "13800138001",
-    login_code: "1",
+    name: "林零零",
+    id_card: "350182198711181546",
+    phone: "18371722591",
+    password: "Abc@1288688",
   },
   {
     id: 2,
-    user_id: "szsfpt020251201144124394a0790181",
-    name: "测试用户2",
-    id_card: "350102199202022345",
-    phone: "13800138002",
-    login_code: "2",
+    user_id: "szsfpt020251215101659991a9205535",
+    name: "賀零零",
+    id_card: "35010219810929241X",
+    phone: "15659996511",
+    password: "Abc@1288688",
   },
   {
     id: 3,
-    user_id: "szsfpt020251223172644365a9395630",
-    name: "测试用户3",
-    id_card: "350102199303033456",
-    phone: "13800138003",
-    login_code: "3",
+    user_id: "szsfpt020251215101659991a9205536",
+    name: "李五三",
+    id_card: "350102198410172839",
+    phone: "17859296215",
+    password: "Abc@1288688",
   },
   {
     id: 4,
-    user_id: "szsfpt020251223154606140a5064417",
-    name: "测试用户4",
-    id_card: "350102199404044567",
-    phone: "13800138004",
-    login_code: "4",
+    user_id: "szsfpt020251215101659991a9205537",
+    name: "叶九零",
+    id_card: "350103198208113516",
+    phone: "18650768288",
+    password: "Abc@1288688",
   },
   {
     id: 5,
-    user_id: "szsfpt020251215101659991a9205534",
-    name: "测试用户5",
-    id_card: "350102199505055678",
-    phone: "13800138005",
-    login_code: "5",
+    user_id: "szsfpt020251215101659991a9205531",
+    name: "叶六八",
+    id_card: "352229198910290046",
+    phone: "17724314617",
+    password: "Abc@1288688",
   },
   {
     id: 6,
-    user_id: "szsfpt020251215101659991a9205535",
-    name: "测试用户6",
-    id_card: "350102199606066789",
-    phone: "13800138006",
-    login_code: "6",
+    user_id: "szsfpt020251201144124394a0790181",
+    name: "林七零",
+    id_card: "350128198710255816",
+    phone: "15880113832",
+    password: "Abc@1288688",
+  },
+  {
+    id: 7,
+    user_id: "szsfpt020251215101659991a9205538",
+    name: "金六八",
+    id_card: "370902197201280924",
+    phone: "18259026925",
+    password: "Abc@1288688",
+  },
+  {
+    id: 8,
+    user_id: "szsfpt020251215101659991a9205539",
+    name: "金五三",
+    id_card: "35010219850915194X",
+    phone: "18649789698",
+    password: "Abc@1288688",
+  },
+  {
+    id: 9,
+    user_id: "szsfpt020251215101659991a9205534",
+    name: "林零零",
+    id_card: "350102197710130855",
+    phone: "17850807901",
+    password: "Abc@1288688",
   },
 ]
 
@@ -60,9 +84,9 @@ export const mockUsers = [
 // 模拟数据库查询函数
 // =====================================================
 
-// 通过序号登录（不需要密码）
-export function mockAuthenticateUser(loginCode: string, _password?: string) {
-  const user = mockUsers.find((u) => u.login_code === loginCode)
+// 通过手机号+密码登录
+export function mockAuthenticateUser(phone: string, password: string) {
+  const user = mockUsers.find((u) => u.phone === phone && u.password === password)
   if (user) {
     return {
       id: user.id,

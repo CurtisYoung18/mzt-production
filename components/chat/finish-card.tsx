@@ -43,6 +43,74 @@ const mockRecords = [
   { id: "EXT202408080004", type: "购房提取", amount: "50,000.00", status: "success", statusText: "提取成功", date: "2024-08-08" },
 ]
 
+// 格式化金额
+function formatAmount(amount: number | undefined): string {
+  if (amount === undefined || amount === null) return "0.00元"
+  return amount.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + "元"
+}
+
+// 脱敏姓名（保留第一个字，其余用*）
+function maskName(name: string | undefined): string {
+  if (!name) return "***"
+  if (name.length <= 1) return name
+  return name[0] + "*".repeat(name.length - 1)
+}
+
+// 脱敏银行卡号（只显示前4位和后4位）
+function maskBankAccount(account: string | undefined): string {
+  if (!account) return "****"
+  if (account.length <= 8) return account
+  return account.slice(0, 4) + "****" + account.slice(-4)
+}
+
+// 脱敏手机号（中间4位用*）
+function maskPhone(phone: string | undefined): string {
+  if (!phone) return "***"
+  if (phone.length < 7) return phone
+  return phone.slice(0, 3) + "****" + phone.slice(-4)
+}
+
+// 脱敏公积金账号（只显示前2位和后3位）
+function maskGjjAccount(account: string | undefined): string {
+  if (!account) return "****"
+  if (account.length <= 5) return account
+  return account.slice(0, 2) + "*".repeat(Math.max(0, account.length - 5)) + account.slice(-3)
+}
+
+// 从 workflow 数据解析显示信息
+interface WorkflowDisplayData {
+  gjjAccount: string
+  accountType: string
+  name: string
+  accountStatus: string
+  balance: string
+  maritalStatus: string
+  extractReason: string
+  bankName: string
+  bankAccount: string
+  extractAmount: string
+  signedPhone: string
+}
+
+// 账户状态代码映射
+const ACCOUNT_STATUS_MAP: Record<string, string> = {
+  "01": "正常",
+  "02": "封存",
+  "03": "冻结",
+  "04": "销户",
+}
+
+// 婚姻状况代码映射
+const MARITAL_STATUS_MAP: Record<string, string> = {
+  "10": "未婚",
+  "20": "已婚",
+  "21": "初婚",
+  "22": "再婚",
+  "30": "丧偶",
+  "40": "离婚",
+  "90": "其他",
+}
+
 export default function FinishCard({ 
   message, 
   accountInfo,
@@ -64,20 +132,82 @@ export default function FinishCard({
   const [rating, setRating] = useState(0)
   const [hoverRating, setHoverRating] = useState(0)
   const [hasRated, setHasRated] = useState(false)
+  const [isLoadingInfo, setIsLoadingInfo] = useState(false)
+  const [workflowData, setWorkflowData] = useState<WorkflowDisplayData | null>(null)
 
-  // Mock 数据
-  const mockData = {
-    gjjAccount: accountInfo?.personalAccount || "14**************021",
+  // 调用 workflow type=200 获取账户信息（与 account-details-card 一致）
+  useEffect(() => {
+    const fetchAccountInfo = async () => {
+      if (!userId || workflowData) return
+      
+      setIsLoadingInfo(true)
+      try {
+        const response = await fetch("/api/workflow", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: 200, // 账户信息查询
+            userId: userId,
+          }),
+        })
+
+        const result = await response.json()
+        console.log("[FinishCard] 账户信息获取结果:", result)
+
+        if (result.success && result.data) {
+          let data = result.data
+          if (typeof data === 'string') {
+            try {
+              data = JSON.parse(data)
+            } catch {
+              console.error("[FinishCard] 解析账户信息失败")
+            }
+          }
+          
+          // 解析 workflow 返回的数据
+          const grzhzt = String(data.grzhzt || '01')
+          const hyzk = String(data.hyzk || '')
+          const accountStatus = ACCOUNT_STATUS_MAP[grzhzt] || '正常'
+          const maritalStatus = MARITAL_STATUS_MAP[hyzk] || ''
+          const totalBalance = parseFloat(String(data.zhye || '0')) || 0
+          
+          setWorkflowData({
+            gjjAccount: maskGjjAccount(String(data.grzh || '')),
+            accountType: data.zhlx === '01' ? '住房公积金' : '住房公积金',
+            name: maskName(String(data.xingming || '')),
+            accountStatus: accountStatus,
+            balance: formatAmount(totalBalance),
+            maritalStatus: maritalStatus,
+            extractReason: `${extractType}提取`,
+            bankName: String(data.styhmc || ''),
+            bankAccount: maskBankAccount(String(data.yhzh || '')),
+            extractAmount: "1500元", // 提取金额由业务逻辑决定
+            signedPhone: maskPhone(String(data.sjhm || '')),
+          })
+        }
+      } catch (error) {
+        console.error("[FinishCard] 获取账户信息失败:", error)
+      } finally {
+        setIsLoadingInfo(false)
+      }
+    }
+    
+    fetchAccountInfo()
+  }, [userId, extractType, workflowData])
+
+  // 显示数据：优先使用 workflow 数据，其次使用 accountInfo prop，最后使用默认值
+  const displayData: WorkflowDisplayData = workflowData || {
+    gjjAccount: accountInfo?.personalAccount ? maskGjjAccount(accountInfo.personalAccount) : "****",
     accountType: accountInfo?.accountType || "住房公积金",
-    name: "张*三",
+    name: accountInfo?.name ? maskName(accountInfo.name) : "***",
     accountStatus: accountInfo?.accountStatus || "正常",
-    balance: "72,000元",
-    maritalStatus: accountInfo?.maritalStatus || "已婚",
+    balance: accountInfo?.totalBalance ? formatAmount(accountInfo.totalBalance) : "0.00元",
+    maritalStatus: accountInfo?.maritalStatus || "",
     extractReason: `${extractType}提取`,
-    bankName: accountInfo?.bankName || "中国工商银行",
-    bankAccount: accountInfo?.bankAccount || "2889***8928",
+    bankName: accountInfo?.bankName || "",
+    bankAccount: accountInfo?.bankAccount ? maskBankAccount(accountInfo.bankAccount) : "****",
     extractAmount: "1500元",
-    signedPhone: accountInfo?.phone || "133****3355"
+    signedPhone: accountInfo?.phone ? maskPhone(accountInfo.phone) : "****"
   }
 
   // 发送验证码倒计时
@@ -118,6 +248,9 @@ export default function FinishCard({
           body: JSON.stringify({
             type: 1132, // 提取提交
             userId: userId,
+            extraInput: {
+              code: verificationCode, // 传递验证码
+            },
           }),
         })
         
@@ -207,27 +340,27 @@ export default function FinishCard({
                 <div className="space-y-2.5 text-sm">
                   <div className="flex justify-between">
                     <span className="text-gray-500 dark:text-gray-400">公积金账户</span>
-                    <span className="text-gray-900 dark:text-gray-100">{mockData.gjjAccount}</span>
+                    <span className="text-gray-900 dark:text-gray-100">{displayData.gjjAccount}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-500 dark:text-gray-400">账户类型</span>
-                    <span className="text-gray-900 dark:text-gray-100">{mockData.accountType}</span>
+                    <span className="text-gray-900 dark:text-gray-100">{displayData.accountType}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-500 dark:text-gray-400">姓名</span>
-                    <span className="text-gray-900 dark:text-gray-100">{mockData.name}</span>
+                    <span className="text-gray-900 dark:text-gray-100">{displayData.name}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-500 dark:text-gray-400">账户状态</span>
-                    <span className="text-green-600 dark:text-green-400">{mockData.accountStatus}</span>
+                    <span className="text-green-600 dark:text-green-400">{displayData.accountStatus}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-500 dark:text-gray-400">账户余额</span>
-                    <span className="text-gray-900 dark:text-gray-100">{mockData.balance}</span>
+                    <span className="text-gray-900 dark:text-gray-100">{displayData.balance}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-500 dark:text-gray-400">婚姻状况</span>
-                    <span className="text-gray-900 dark:text-gray-100">{mockData.maritalStatus}</span>
+                    <span className="text-gray-900 dark:text-gray-100">{displayData.maritalStatus}</span>
                   </div>
                 </div>
               </div>
@@ -241,23 +374,23 @@ export default function FinishCard({
                 <div className="space-y-2.5 text-sm">
                   <div className="flex justify-between">
                     <span className="text-gray-500 dark:text-gray-400">提取原因</span>
-                    <span className="text-gray-900 dark:text-gray-100">{mockData.extractReason}</span>
+                    <span className="text-gray-900 dark:text-gray-100">{displayData.extractReason}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-500 dark:text-gray-400">收款银行</span>
-                    <span className="text-gray-900 dark:text-gray-100">{mockData.bankName}</span>
+                    <span className="text-gray-900 dark:text-gray-100">{displayData.bankName}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-500 dark:text-gray-400">收款银行账号</span>
-                    <span className="text-gray-900 dark:text-gray-100">{mockData.bankAccount}</span>
+                    <span className="text-gray-900 dark:text-gray-100">{displayData.bankAccount}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-500 dark:text-gray-400">预计可提取金额</span>
-                    <span className="text-xl font-bold text-orange-500">{mockData.extractAmount}</span>
+                    <span className="text-xl font-bold text-orange-500">{displayData.extractAmount}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-500 dark:text-gray-400">签约手机号</span>
-                    <span className="text-gray-900 dark:text-gray-100">{mockData.signedPhone}</span>
+                    <span className="text-gray-900 dark:text-gray-100">{displayData.signedPhone}</span>
                   </div>
                 </div>
               </div>

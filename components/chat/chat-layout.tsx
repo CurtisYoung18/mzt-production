@@ -90,8 +90,6 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
   const [conversationId, setConversationId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [connectionError, setConnectionError] = useState<string | null>(null)
-  const [titleGenerated, setTitleGenerated] = useState(false) // Track if title has been generated for current session
-  const titleGenerationAttempted = useRef(false) // Prevent multiple title generation attempts
   const thinkingPollingRef = useRef<NodeJS.Timeout | null>(null) // 轮询定时器引用
 
   // 轮询获取思考内容
@@ -145,92 +143,6 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
     }
   }, [messages])
 
-  // Function to generate session title using AI
-  const generateSessionTitle = useCallback(async (messageList: Message[], sessionId: string) => {
-    // Filter only user messages with actual content
-    const userMessages = messageList.filter(
-      (m) => m.id !== "welcome" && 
-             m.role === "user" &&
-             m.content?.trim()
-    )
-
-    // Build conversation history string - only user messages
-    const conversationHistory = userMessages
-      .slice(0, 3) // Take first 3 user messages
-      .map((m) => m.content)
-      .join("\n\n")
-
-    try {
-      const response = await fetch("/api/chat/title", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: user.userId,
-          conversationHistory,
-        }),
-      })
-
-      if (!response.ok) {
-        // 标题生成失败不影响主功能，静默处理
-        return
-      }
-
-      const data = await response.json()
-      if (data.title) {
-        setSessions((prev) =>
-          prev.map((s) => (s.id === sessionId ? { ...s, title: data.title } : s))
-        )
-        setTitleGenerated(true)
-      }
-    } catch (error) {
-      console.error("[Title] Error generating title:", error)
-    }
-  }, [user.userId])
-
-  // Effect to trigger title generation when messages update
-  useEffect(() => {
-    // Skip if title already generated or generation attempted, or if still loading
-    if (titleGenerated || titleGenerationAttempted.current || isLoading) {
-      return
-    }
-
-    // Filter valid user messages (must have content and not be in thinking state)
-    const userMessages = messages.filter(
-      (m) => m.id !== "welcome" && m.role === "user" && m.content && m.content.trim() !== ""
-    )
-    
-    // Filter valid assistant messages (must have content OR accountInfo, and not be in thinking/querying state)
-    const assistantMessages = messages.filter(
-      (m) => m.id !== "welcome" && 
-             m.role === "assistant" && 
-             !m.isThinking && 
-             !m.isQuerying &&
-             (m.content?.trim() || m.accountInfo)
-    )
-    
-    // Check if we have at least 3 user messages and 3 assistant responses
-    if (userMessages.length >= 3 && assistantMessages.length >= 3) {
-      titleGenerationAttempted.current = true
-      generateSessionTitle(messages, activeSessionId)
-    } else if (userMessages.length >= 1 && assistantMessages.length >= 1) {
-      // Update title with first user message if not yet set
-      const currentSession = sessions.find((s) => s.id === activeSessionId)
-      if (currentSession?.title === "新会话") {
-        const firstUserMessage = userMessages[0].content
-        const title = firstUserMessage.substring(0, 15) + (firstUserMessage.length > 15 ? "..." : "")
-        setSessions((prev) =>
-          prev.map((s) => (s.id === activeSessionId ? { ...s, title } : s))
-        )
-      }
-    }
-  }, [messages, isLoading, titleGenerated, activeSessionId, sessions, generateSessionTitle])
-
-  // Reset title generation flag when switching sessions
-  useEffect(() => {
-    titleGenerationAttempted.current = false
-    setTitleGenerated(false)
-  }, [activeSessionId])
-
   const initConversation = useCallback(async () => {
     if (conversationId) return conversationId
 
@@ -270,7 +182,6 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
     setActiveSessionId(newSession.id)
     setConversationId(null)
     setConnectionError(null)
-    setTitleGenerated(false)
     
     setMessages([
       {

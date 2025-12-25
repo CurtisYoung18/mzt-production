@@ -8,21 +8,28 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Building2, Loader2 } from "lucide-react"
+import { Building2, Loader2, Eye, EyeOff } from "lucide-react"
 
-// 测试用户列表
+// 测试用户列表（手机号）
 const TEST_USERS = [
-  { code: "1", userId: "szsfpt020251223173845080a5245392" },
-  { code: "2", userId: "szsfpt020251201144124394a0790181" },
-  { code: "3", userId: "szsfpt020251223172644365a9395630" },
-  { code: "4", userId: "szsfpt020251223154606140a5064417" },
-  { code: "5", userId: "szsfpt020251215101659991a9205534" },
-  { code: "6", userId: "szsfpt020251215101659991a9205535" },
+  { phone: "18371722591", name: "林零零" },
+  { phone: "15659996511", name: "賀零零" },
+  { phone: "17859296215", name: "李五三" },
+  { phone: "18650768288", name: "叶九零" },
+  { phone: "17724314617", name: "叶六八" },
+  { phone: "15880113832", name: "林七零" },
+  { phone: "18259026925", name: "金六八" },
+  { phone: "18649789698", name: "金五三" },
+  { phone: "17850807901", name: "林零零" },
 ]
+
+const DEFAULT_PASSWORD = "Abc@1288688"
 
 export default function LoginPage() {
   const router = useRouter()
-  const [loginCode, setLoginCode] = useState("")
+  const [phone, setPhone] = useState("")
+  const [password, setPassword] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
 
@@ -35,7 +42,7 @@ export default function LoginPage() {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ account: loginCode }),
+        body: JSON.stringify({ phone, password }),
       })
 
       const data = await res.json()
@@ -54,8 +61,9 @@ export default function LoginPage() {
   }
 
   // 快速登录按钮
-  const handleQuickLogin = async (code: string) => {
-    setLoginCode(code)
+  const handleQuickLogin = async (userPhone: string) => {
+    setPhone(userPhone)
+    setPassword(DEFAULT_PASSWORD)
     setError("")
     setLoading(true)
 
@@ -63,7 +71,7 @@ export default function LoginPage() {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ account: code }),
+        body: JSON.stringify({ phone: userPhone, password: DEFAULT_PASSWORD }),
       })
 
       const data = await res.json()
@@ -96,16 +104,38 @@ export default function LoginPage() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="loginCode">登录序号</Label>
+              <Label htmlFor="phone">手机号</Label>
               <Input
-                id="loginCode"
-                type="text"
-                placeholder="请输入序号 (1-6)"
-                value={loginCode}
-                onChange={(e) => setLoginCode(e.target.value)}
-                className="bg-card text-center text-lg"
+                id="phone"
+                type="tel"
+                placeholder="请输入手机号"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className="bg-card"
                 required
+                maxLength={11}
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">密码</Label>
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="请输入密码"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="bg-card pr-10"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
             {error && <p className="text-sm text-destructive text-center">{error}</p>}
             <Button
@@ -126,27 +156,33 @@ export default function LoginPage() {
           
           {/* 测试账号列表 */}
           <div className="mt-6 p-4 bg-secondary/50 rounded-lg">
-            <p className="text-xs text-muted-foreground mb-3">测试账号（点击序号快速登录）：</p>
-            <div className="space-y-2">
-              {TEST_USERS.map((user) => (
+            <p className="text-xs text-muted-foreground mb-3">测试账号（点击快速登录）：</p>
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              {TEST_USERS.map((user, index) => (
                 <div 
-                  key={user.code}
+                  key={user.phone}
                   className="flex items-center gap-2 text-xs"
                 >
                   <button
                     type="button"
-                    onClick={() => handleQuickLogin(user.code)}
+                    onClick={() => handleQuickLogin(user.phone)}
                     disabled={loading}
-                    className="w-8 h-8 rounded-full bg-primary/20 hover:bg-primary/30 text-primary font-semibold transition-colors disabled:opacity-50"
+                    className="flex-1 flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/10 hover:bg-primary/20 text-left transition-colors disabled:opacity-50"
                   >
-                    {user.code}
+                    <span className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center text-primary font-semibold text-[10px]">
+                      {index + 1}
+                    </span>
+                    <span className="text-foreground font-medium">{user.name}</span>
+                    <span className="text-muted-foreground font-mono ml-auto">
+                      {user.phone}
+                    </span>
                   </button>
-                  <span className="text-muted-foreground font-mono text-[10px] truncate">
-                    {user.userId}
-                  </span>
                 </div>
               ))}
             </div>
+            <p className="text-[10px] text-muted-foreground mt-3 text-center">
+              默认密码：{DEFAULT_PASSWORD}
+            </p>
           </div>
         </CardContent>
       </Card>
